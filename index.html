@@ -316,6 +316,61 @@
             color: #aaa;
         }
 
+        .host-config {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-group label {
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+
+        .config-group select {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .player-status {
+            font-size: 0.9em;
+            margin-top: 5px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .player-status.submitted {
+            background: rgba(40, 167, 69, 0.3);
+            color: #28a745;
+        }
+
+        .player-status.waiting {
+            background: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2rem;
@@ -363,8 +418,57 @@
             <div id="playersList" class="players-list">
                 <!-- Players will be populated here -->
             </div>
-            <div id="hostControls" class="actions hidden">
-                <button class="btn" onclick="startGame()">Start Game</button>
+            <div id="hostControls" class="hidden">
+                <h3 style="text-align: center; margin: 20px 0;">Game Settings</h3>
+                <div class="host-config">
+                    <div class="config-group">
+                        <label for="hostWhiteCardCount">Cards per Player:</label>
+                        <select id="hostWhiteCardCount">
+                            <option value="5">5 Cards</option>
+                            <option value="7" selected>7 Cards</option>
+                            <option value="10">10 Cards</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label for="hostRoundCount">Number of Rounds:</label>
+                        <select id="hostRoundCount">
+                            <option value="5">5 Rounds</option>
+                            <option value="10" selected>10 Rounds</option>
+                            <option value="15">15 Rounds</option>
+                            <option value="20">20 Rounds</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <h3 style="text-align: center; margin: 20px 0;">Manage Card Decks</h3>
+                <div class="actions">
+                    <button class="btn btn-secondary" onclick="showCardManagement()">Edit Black Cards</button>
+                    <button class="btn btn-secondary" onclick="showCardManagement('white')">Edit White Cards</button>
+                </div>
+                
+                <div class="actions" style="margin-top: 15px;">
+                    <button class="btn" onclick="startGame()">Start Game</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Management Modal -->
+        <div id="cardManagementModal" class="game-section hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; max-height: 80vh; overflow-y: auto; width: 90%; max-width: 800px;">
+            <h2 id="cardManagementTitle" style="text-align: center; margin-bottom: 20px;">Manage Cards</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <textarea id="bulkCardInput" placeholder="Paste cards here, one per line..." style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical;"></textarea>
+            </div>
+            
+            <div class="actions">
+                <button class="btn" onclick="saveBulkCards()">Replace All Cards</button>
+                <button class="btn btn-secondary" onclick="addBulkCards()">Add to Existing Cards</button>
+                <button class="btn btn-secondary" onclick="closeCardManagement()">Cancel</button>
+            </div>
+            
+            <h3 style="margin: 20px 0;">Current Cards:</h3>
+            <div id="currentCardsList" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 5px;">
+                <!-- Current cards will be listed here -->
             </div>
         </div>
 
@@ -446,14 +550,13 @@
     <script>
         // Firebase Configuration - You'll need to replace this with your own config
         const firebaseConfig = {
-            apiKey: "AIzaSyA7hz07OZNNNLPKlQFw1j5vEiewwPOOUOQ",
-            authDomain: "saturday-night-cards.firebaseapp.com",
-            databaseURL: "https://saturday-night-cards-default-rtdb.firebaseio.com",
-            projectId: "saturday-night-cards",
-            storageBucket: "saturday-night-cards.firebasestorage.app",
-            messagingSenderId: "216085215949",
-            appId: "1:216085215949:web:1a08c0096000713518c784",
-            measurementId: "G-2FDBQ8VWYL"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         // Initialize Firebase
@@ -469,6 +572,7 @@
         };
         let selectedCardIndex = null;
         let selectedSubmissionIndex = null;
+        let currentCardType = 'black'; // for card management
 
         // Default card decks
         const defaultBlackCards = [
@@ -561,6 +665,17 @@
                     playerDiv.classList.add('czar');
                 }
 
+                // Show submission status during player submission phase
+                let statusHtml = '';
+                if (gameData.phase === 'players_submitting' && player.id !== gameData.czarId) {
+                    const hasSubmitted = gameData.submittedPlayers && gameData.submittedPlayers[player.id];
+                    statusHtml = `
+                        <div class="player-status ${hasSubmitted ? 'submitted' : 'waiting'}">
+                            ${hasSubmitted ? 'Submitted' : 'Thinking...'}
+                        </div>
+                    `;
+                }
+
                 playerDiv.innerHTML = `
                     <div class="player-name">
                         ${player.name}
@@ -568,6 +683,7 @@
                         ${player.id === gameData.czarId ? ' 🎩' : ''}
                     </div>
                     <div class="player-score">Score: ${player.score || 0}</div>
+                    ${statusHtml}
                 `;
                 playersList.appendChild(playerDiv);
             });
@@ -722,17 +838,23 @@
                 return;
             }
 
+            // Get host settings
+            const whiteCardCount = parseInt(document.getElementById('hostWhiteCardCount').value);
+            const roundCount = parseInt(document.getElementById('hostRoundCount').value);
+
             // Deal initial hands and start first round
             const updates = {};
             const playerIds = Object.keys(gameData.players);
             
             playerIds.forEach(playerId => {
-                const hand = getRandomCards(gameData.whiteCards, gameData.whiteCardCount);
+                const hand = getRandomCards(gameData.whiteCards, whiteCardCount);
                 updates[`players/${playerId}/hand`] = hand;
             });
 
             updates.phase = 'czar_selecting';
             updates.round = 1;
+            updates.maxRounds = roundCount;
+            updates.whiteCardCount = whiteCardCount;
             updates.czarId = gameData.hostId;
             updates.blackCardOptions = getRandomCards(gameData.blackCards, 3);
 
@@ -1060,6 +1182,81 @@
         async function getCurrentGameData() {
             const snapshot = await database.ref(`games/${currentGame}`).once('value');
             return snapshot.val();
+        }
+
+        // Card Management Functions
+        function showCardManagement(type = 'black') {
+            currentCardType = type;
+            document.getElementById('cardManagementTitle').textContent = 
+                `Manage ${type.charAt(0).toUpperCase() + type.slice(1)} Cards`;
+            
+            // Show overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            overlay.onclick = closeCardManagement;
+            document.body.appendChild(overlay);
+            
+            document.getElementById('cardManagementModal').classList.remove('hidden');
+            updateCurrentCardsList();
+        }
+
+        function closeCardManagement() {
+            document.getElementById('cardManagementModal').classList.add('hidden');
+            const overlay = document.querySelector('.overlay');
+            if (overlay) overlay.remove();
+            document.getElementById('bulkCardInput').value = '';
+        }
+
+        async function updateCurrentCardsList() {
+            const gameData = await getCurrentGameData();
+            const cards = currentCardType === 'black' ? gameData.blackCards : gameData.whiteCards;
+            const listContainer = document.getElementById('currentCardsList');
+            
+            listContainer.innerHTML = cards.map((card, index) => 
+                `<div style="margin: 5px 0; padding: 5px; background: rgba(255,255,255,0.1); border-radius: 3px;">
+                    ${index + 1}. ${card}
+                </div>`
+            ).join('');
+        }
+
+        async function saveBulkCards() {
+            const textarea = document.getElementById('bulkCardInput');
+            const cards = textarea.value.split('\n').map(card => card.trim()).filter(card => card);
+            
+            if (cards.length === 0) {
+                alert('Please enter some cards, one per line');
+                return;
+            }
+
+            if (!confirm(`Replace all ${currentCardType} cards with ${cards.length} new cards?`)) {
+                return;
+            }
+
+            const updatePath = currentCardType === 'black' ? 'blackCards' : 'whiteCards';
+            await database.ref(`games/${currentGame}/${updatePath}`).set(cards);
+            
+            alert(`Successfully replaced ${currentCardType} cards!`);
+            closeCardManagement();
+        }
+
+        async function addBulkCards() {
+            const textarea = document.getElementById('bulkCardInput');
+            const newCards = textarea.value.split('\n').map(card => card.trim()).filter(card => card);
+            
+            if (newCards.length === 0) {
+                alert('Please enter some cards, one per line');
+                return;
+            }
+
+            const gameData = await getCurrentGameData();
+            const existingCards = currentCardType === 'black' ? gameData.blackCards : gameData.whiteCards;
+            const combinedCards = [...existingCards, ...newCards];
+
+            const updatePath = currentCardType === 'black' ? 'blackCards' : 'whiteCards';
+            await database.ref(`games/${currentGame}/${updatePath}`).set(combinedCards);
+            
+            alert(`Successfully added ${newCards.length} ${currentCardType} cards!`);
+            closeCardManagement();
         }
 
         // Event Listeners
