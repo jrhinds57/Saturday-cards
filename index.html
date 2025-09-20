@@ -154,6 +154,24 @@
             font-weight: bold;
         }
 
+        .player-status {
+            font-size: 0.9em;
+            margin-top: 5px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .player-status.submitted {
+            background: rgba(40, 167, 69, 0.3);
+            color: #28a745;
+        }
+
+        .player-status.waiting {
+            background: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+
         .black-card {
             background: #1a1a1a;
             border: 2px solid #333;
@@ -343,24 +361,6 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        .player-status {
-            font-size: 0.9em;
-            margin-top: 5px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .player-status.submitted {
-            background: rgba(40, 167, 69, 0.3);
-            color: #28a745;
-        }
-
-        .player-status.waiting {
-            background: rgba(255, 193, 7, 0.3);
-            color: #ffc107;
-        }
-
         .overlay {
             position: fixed;
             top: 0;
@@ -548,7 +548,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // Firebase Configuration - You'll need to replace this with your own config
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyA7hz07OZNNNLPKlQFw1j5vEiewwPOOUOQ",
             authDomain: "saturday-night-cards.firebaseapp.com",
@@ -557,7 +557,6 @@
             storageBucket: "saturday-night-cards.firebasestorage.app",
             messagingSenderId: "216085215949",
             appId: "1:216085215949:web:1a08c0096000713518c784"
-            measurementId: "G-2FDBQ8VWYL"
         };
 
         // Initialize Firebase
@@ -573,7 +572,7 @@
         };
         let selectedCardIndex = null;
         let selectedSubmissionIndex = null;
-        let currentCardType = 'black'; // for card management
+        let currentCardType = 'black';
 
         // Default card decks
         const defaultBlackCards = [
@@ -666,7 +665,6 @@
                     playerDiv.classList.add('czar');
                 }
 
-                // Show submission status during player submission phase
                 let statusHtml = '';
                 if (gameData.phase === 'players_submitting' && player.id !== gameData.czarId) {
                     const hasSubmitted = gameData.submittedPlayers && gameData.submittedPlayers[player.id];
@@ -706,10 +704,8 @@
             currentPlayer.id = generateId();
 
             if (code) {
-                // Join existing game
                 await joinGame(code);
             } else {
-                // Create new game
                 await createGame();
             }
         }
@@ -763,7 +759,6 @@
                     return;
                 }
 
-                // Add player to game
                 await database.ref(`games/${gameCode}/players/${currentPlayer.id}`).set({
                     id: currentPlayer.id,
                     name: currentPlayer.name,
@@ -783,7 +778,6 @@
             database.ref(`games/${gameCode}`).on('value', (snapshot) => {
                 const gameData = snapshot.val();
                 if (!gameData) return;
-
                 updateGameDisplay(gameData);
             });
         }
@@ -839,11 +833,9 @@
                 return;
             }
 
-            // Get host settings
             const whiteCardCount = parseInt(document.getElementById('hostWhiteCardCount').value);
             const roundCount = parseInt(document.getElementById('hostRoundCount').value);
 
-            // Deal initial hands and start first round
             const updates = {};
             const playerIds = Object.keys(gameData.players);
             
@@ -988,7 +980,6 @@
                 const playerHand = gameData.players[currentPlayer.id].hand;
                 answer = playerHand[selectedCardIndex];
                 
-                // Remove card from hand and add new one
                 const newHand = [...playerHand];
                 newHand.splice(selectedCardIndex, 1);
                 const availableCards = gameData.whiteCards.filter(card => !newHand.includes(card));
@@ -1016,7 +1007,6 @@
             document.getElementById('customAnswerInput').value = '';
             updateGameStatus('Answer submitted! Waiting for other players...');
 
-            // Check if all players have submitted
             checkAllSubmitted();
         }
 
@@ -1102,7 +1092,6 @@
             if (gameData.lastWinner) {
                 updateGameStatus(`🎉 ${gameData.lastWinner.name} wins this round with: "${gameData.lastWinner.answer}"`);
                 
-                // Highlight winning submission
                 document.querySelectorAll('#submissionsGrid .submission-card').forEach(card => {
                     if (card.textContent === gameData.lastWinner.answer) {
                         card.classList.add('winner');
@@ -1174,7 +1163,6 @@
 
         async function redrawHand() {
             const gameData = await getCurrentGameData();
-            const playerHand = gameData.players[currentPlayer.id].hand;
             const newHand = getRandomCards(gameData.whiteCards, gameData.whiteCardCount);
             
             await database.ref(`games/${currentGame}/players/${currentPlayer.id}/hand`).set(newHand);
@@ -1191,7 +1179,6 @@
             document.getElementById('cardManagementTitle').textContent = 
                 `Manage ${type.charAt(0).toUpperCase() + type.slice(1)} Cards`;
             
-            // Show overlay
             const overlay = document.createElement('div');
             overlay.className = 'overlay';
             overlay.onclick = closeCardManagement;
