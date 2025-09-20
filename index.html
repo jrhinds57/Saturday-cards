@@ -17,11 +17,76 @@
             color: #ffffff;
             min-height: 100vh;
             padding: 20px;
+            display: flex;
+        }
+
+        .game-layout {
+            display: flex;
+            width: 100%;
+            gap: 20px;
+        }
+
+        .scoreboard {
+            width: 250px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .scoreboard h3 {
+            text-align: center;
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+
+        .score-player {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid transparent;
+        }
+
+        .score-player.host {
+            border-left-color: #ff6b6b;
+        }
+
+        .score-player.czar {
+            border-left-color: #ffd700;
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .score-player-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .score-player-points {
+            color: #4ecdc4;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .main-content {
+            flex: 1;
+            min-width: 0;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: none;
+            margin: 0;
+            width: 100%;
         }
 
         .header {
@@ -372,6 +437,20 @@
         }
 
         @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .game-layout {
+                flex-direction: column;
+            }
+            
+            .scoreboard {
+                width: 100%;
+                position: static;
+                order: -1;
+            }
+            
             .header h1 {
                 font-size: 2rem;
             }
@@ -387,7 +466,18 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="game-layout">
+        <!-- Scoreboard -->
+        <div id="scoreboard" class="scoreboard hidden">
+            <h3>🏆 Scoreboard</h3>
+            <div id="scoreboardPlayers">
+                <!-- Score list will be populated here -->
+            </div>
+        </div>
+
+        <!-- Main Game Content -->
+        <div class="main-content">
+            <div class="container">
         <div class="header">
             <h1>🎲 Private Game Room</h1>
             <p>A card game for friends who aren't easily offended</p>
@@ -541,6 +631,8 @@
                 <button id="selectWinnerBtn" class="btn" onclick="selectWinner()" disabled>Choose Winner</button>
             </div>
         </div>
+            </div>
+        </div>
     </div>
 
     <!-- Firebase SDK -->
@@ -685,6 +777,54 @@
                     ${statusHtml}
                 `;
                 playersList.appendChild(playerDiv);
+            });
+
+            // Update scoreboard
+            updateScoreboard(gameData);
+        }
+
+        function updateScoreboard(gameData) {
+            const scoreboardContainer = document.getElementById('scoreboardPlayers');
+            const scoreboard = document.getElementById('scoreboard');
+            
+            if (!gameData.players || gameData.phase === 'waiting') {
+                scoreboard.classList.add('hidden');
+                return;
+            }
+
+            // Show scoreboard during gameplay
+            scoreboard.classList.remove('hidden');
+
+            // Sort players by score (highest first)
+            const sortedPlayers = Object.values(gameData.players).sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            scoreboardContainer.innerHTML = '';
+            sortedPlayers.forEach((player, index) => {
+                const scoreDiv = document.createElement('div');
+                scoreDiv.className = 'score-player';
+                
+                if (player.id === gameData.hostId) {
+                    scoreDiv.classList.add('host');
+                }
+                if (player.id === gameData.czarId) {
+                    scoreDiv.classList.add('czar');
+                }
+
+                // Add rank indicator for top 3
+                let rankIndicator = '';
+                if (index === 0 && player.score > 0) rankIndicator = '🥇';
+                else if (index === 1 && player.score > 0) rankIndicator = '🥈';
+                else if (index === 2 && player.score > 0) rankIndicator = '🥉';
+
+                scoreDiv.innerHTML = `
+                    <div class="score-player-name">
+                        ${rankIndicator} ${player.name}
+                        ${player.id === gameData.hostId ? ' 👑' : ''}
+                        ${player.id === gameData.czarId ? ' 🎩' : ''}
+                    </div>
+                    <div class="score-player-points">${player.score || 0}</div>
+                `;
+                scoreboardContainer.appendChild(scoreDiv);
             });
         }
 
