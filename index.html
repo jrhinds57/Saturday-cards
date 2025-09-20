@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Game Room</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #ff6b6b;
+        }
+
+        .game-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .join-form {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .join-form input, .join-form button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .join-form input {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .join-form input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #ee5a52, #ff6b6b);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #44a08d, #4ecdc4);
+        }
+
+        .host-config {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-group label {
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+
+        .config-group input, .config-group select {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .players-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .player-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 15px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .player-card.czar {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.2);
+        }
+
+        .player-card.host {
+            border-color: #ff6b6b;
+        }
+
+        .player-card.kicked {
+            opacity: 0.6;
+            border-color: #dc3545;
+            background: rgba(220, 53, 69, 0.2);
+        }
+
+        .player-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .player-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .player-actions button:hover {
+            opacity: 1;
+        }
+
+        .kick-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .rejoin-message {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #28a745;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .player-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .player-score {
+            color: #4ecdc4;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .game-status {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .black-card {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .black-card:hover {
+            border-color: #ff6b6b;
+            transform: translateY(-2px);
+        }
+
+        .black-card.selected {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .active-black-card {
+            background: #1a1a1a;
+            border: 2px solid #ffd700;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .white-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .white-card {
+            background: #f8f8f8;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .white-card:hover {
+            border-color: #4ecdc4;
+            transform: translateY(-2px);
+        }
+
+        .white-card.selected {
+            border-color: #ff6b6b;
+            background: #ffe6e6;
+        }
+
+        .custom-answer-section {
+            margin-bottom: 20px;
+        }
+
+        .custom-answer-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .custom-answer-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .submissions-area {
+            margin-top: 30px;
+        }
+
+        .submissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .submission-card {
+            background: #f8f8f8;
+            color: #333;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .submission-card:hover {
+            border-color: #4ecdc4;
+            transform: translateY(-2px);
+        }
+
+        .submission-card.winner {
+            border-color: #ffd700;
+            background: #fffacd;
+        }
+
+        .pending-submissions {
+            color: #ff6b6b;
+            font-style: italic;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .round-info {
+            text-align: center;
+            font-size: 20px;
+            color: #4ecdc4;
+            margin-bottom: 15px;
+        }
+
+        .admin-controls {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        .admin-group {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .admin-group h3 {
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .custom-answers-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .custom-answer-entry {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-left: 3px solid #4ecdc4;
+        }
+
+        .custom-answer-entry .answer-text {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .custom-answer-entry .answer-meta {
+            font-size: 0.9em;
+            color: #aaa;
+        }
+
+        .card-management-list {
+            max-height: 400px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .card-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+
+        .card-entry .card-text {
+            flex: 1;
+            margin-right: 15px;
+        }
+
+        .card-entry .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .card-search {
+            margin-bottom: 15px;
+        }
+
+        .stats-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .join-form {
+                flex-direction: column;
+            }
+            
+            .join-form input {
+                min-width: auto;
+            }
+            
+            .host-config {
+                grid-template-columns: 1fr;
+            }
+            
+            .card-entry {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .card-entry .card-text {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎲 Private Game Room</h1>
+            <p>A card game for friends who aren't easily offended</p>
+        </div>
+
+        <!-- Admin Section -->
+        <div id="adminSection" class="game-section hidden">
+            <h2 style="text-align: center; margin-bottom: 20px;">🛠️ Admin Controls</h2>
+            <div class="admin-controls">
+                <div class="admin-group">
+                    <h3>Custom Answers Log</h3>
+                    <div id="customAnswersLog" class="custom-answers-list">
+                        <p>No custom answers recorded yet.</p>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-secondary" onclick="exportCustomAnswers()">Export to Spreadsheet</button>
+                        <button class="btn btn-secondary" onclick="clearCustomAnswers()">Clear Log</button>
+                    </div>
+                </div>
+                
+                <div class="admin-group">
+                    <h3>White Card Management</h3>
+                    <div class="card-search">
+                        <input type="text" id="cardSearchInput" placeholder="Search cards..." style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-right: 10px; width: 300px;">
+                        <button class="btn btn-secondary" onclick="searchCards()">Search</button>
+                    </div>
+                    <div id="cardManagementList" class="card-management-list">
+                        <!-- Cards will be populated here -->
+                    </div>
+                    <div class="actions" style="margin-top: 15px;">
+                        <input type="text" id="newCardInput" placeholder="Add new white card..." style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 400px; margin-right: 10px;">
+                        <button class="btn" onclick="addNewCard()">Add Card</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Game Section -->
+        <div id="joinSection" class="game-section">
+            <h2 style="text-align: center; margin-bottom: 20px;">Join the Game</h2>
+            <div class="join-form">
+                <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+                <button class="btn" onclick="joinGame()">Join Game</button>
+                <button class="btn btn-secondary" onclick="toggleAdminMode()" id="adminToggle">Admin Mode</button>
+            </div>
+        </div>
+
+        <!-- Host Configuration -->
+        <div id="hostSection" class="game-section hidden">
+            <h2 style="text-align: center; margin-bottom: 20px;">Game Configuration</h2>
+            <div class="host-config">
+                <div class="config-group">
+                    <label for="whiteCardCount">White Cards per Player:</label>
+                    <select id="whiteCardCount">
+                        <option value="5">5 Cards</option>
+                        <option value="7" selected>7 Cards</option>
+                        <option value="10">10 Cards</option>
+                    </select>
+                </div>
+                <div class="config-group">
+                    <label for="roundCount">Number of Rounds:</label>
+                    <select id="roundCount">
+                        <option value="5">5 Rounds</option>
+                        <option value="10" selected>10 Rounds</option>
+                        <option value="15">15 Rounds</option>
+                        <option value="20">20 Rounds</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn" onclick="startGame()">Start Game</button>
+            </div>
+        </div>
+
+        <!-- Players List -->
+        <div id="playersSection" class="game-section">
+            <h2 style="text-align: center; margin-bottom: 20px;">Players</h2>
+            <div id="playersList" class="players-list">
+                <!-- Players will be populated here -->
+            </div>
+        </div>
+
+        <!-- Game Status -->
+        <div id="gameStatus" class="game-status hidden">
+            Waiting for game to start...
+        </div>
+
+        <!-- Round Info -->
+        <div id="roundInfo" class="round-info hidden">
+            <!-- Round information will be displayed here -->
+        </div>
+
+        <!-- Czar Black Card Selection -->
+        <div id="czarSection" class="game-section hidden">
+            <h2 style="text-align: center; margin-bottom: 20px;">Choose a Black Card</h2>
+            <div id="blackCardOptions" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                <!-- Black card options will be populated here -->
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="redrawBlackCards()">Redraw Cards</button>
+                <button id="selectBlackCardBtn" class="btn" onclick="selectBlackCard()" disabled>Select This Card</button>
+            </div>
+        </div>
+
+        <!-- Active Round -->
+        <div id="roundSection" class="game-section hidden">
+            <div id="activeBlackCard" class="active-black-card">
+                <!-- Active black card will be displayed here -->
+            </div>
+
+            <!-- Player Hand -->
+            <div id="playerHand">
+                <h3 style="margin-bottom: 15px;">Your White Cards:</h3>
+                <div id="whiteCards" class="white-cards">
+                    <!-- Player's white cards will be populated here -->
+                </div>
+            </div>
+
+            <!-- Custom Answer Section -->
+            <div class="custom-answer-section">
+                <h3 style="margin-bottom: 10px;">Or submit a custom answer:</h3>
+                <input type="text" id="customAnswerInput" class="custom-answer-input" placeholder="Type your own hilarious answer..." maxlength="100">
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="redrawHand()">Redraw All Cards</button>
+                <button id="submitAnswerBtn" class="btn" onclick="submitAnswer()" disabled>Submit Answer</button>
+            </div>
+        </div>
+
+        <!-- Submissions and Judging -->
+        <div id="submissionsSection" class="game-section hidden">
+            <div id="activeBlackCardJudge" class="active-black-card">
+                <!-- Active black card for judging will be displayed here -->
+            </div>
+            
+            <div class="pending-submissions" id="pendingSubmissions">
+                <!-- Pending submissions info will be shown here -->
+            </div>
+
+            <div class="submissions-area">
+                <h3 style="text-align: center; margin-bottom: 20px;">Submitted Answers</h3>
+                <div id="submissionsGrid" class="submissions-grid">
+                    <!-- Submitted answers will be populated here -->
+                </div>
+            </div>
+
+            <div class="actions" id="judgeActions">
+                <button id="selectWinnerBtn" class="btn" onclick="selectWinner()" disabled>Choose Winner</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game state management
+        let gameState = {
+            players: [],
+            hostId: null,
+            currentRound: 0,
+            rounds: 10,
+            whiteCardCount: 7,
+            czarId: null,
+            selectedBlackCardOptions: [],
+            activeBlackCard: null,
+            submissions: [],
+            pendingSubmissions: [],
+            gameStarted: false,
+            roundPhase: 'waiting',
+            kickedPlayers: []
+        };
+
+        let currentPlayer = {
+            id: null,
+            name: '',
+            hand: [],
+            selectedCard: null,
+            customAnswer: ''
+        };
+
+        let selectedBlackCardIndex = null;
+        let selectedSubmissionIndex = null;
+        let isAdminMode = false;
+
+        // Custom answers tracking
+        let customAnswersLog = [];
+        let whiteCardsDatabase = [];
+
+        // Sample card data
+        const blackCards = [
+            "___: kid tested, mother approved.",
+            "___? There's an app for that.",
+            "What's the next Happy Meal toy?",
+            "In his new self-produced album, Kanye West raps over the sounds of ___.",
+            "What ended my last relationship?",
+            "I drink to forget ___.",
+            "What's that sound?",
+            "What's the most emo?",
+            "Instead of coal, Santa now gives the bad children ___.",
+            "What gives me uncontrollable gas?",
+            "When I am the President of the United States, I will create the Department of ___.",
+            "What do old people smell like?",
+            "What would grandma find disturbing, yet oddly charming?",
+            "What's my secret power?",
+            "Coming to Broadway this season, ___: The Musical.",
+            "What's there a ton of in heaven?",
+            "What did I bring back from Mexico?",
+            "What am I giving up for Lent?",
+            "What helps Obama unwind?",
+            "What will always get you laid?"
+        ];
+
+        const whiteCards = [
+            "A mime having a stroke",
+            "The Big Bang",
+            "Getting so angry you pop a boner",
+            "Vigorous jazz hands",
+            "A windmill full of corpses",
+            "Swooping",
+            "The invisible hand",
+            "A sassy black woman",
+            "Abstinence",
+            "Adderall",
+            "My genitals",
+            "Racially-biased SAT questions",
+            "The Three-Fifths compromise",
+            "Take-backsies",
+            "My collection of high-tech sex toys",
+            "Throwing a virgin into a volcano",
+            "Bling",
+            "Poor life choices",
+            "Coat hanger abortions",
+            "Powerful thighs",
+            "The South",
+            "Spectacular abs",
+            "Child beauty pageants",
+            "Hormone injections",
+            "A Super Soaker full of cat pee",
+            "Emotions",
+            "Daniel Radcliffe's delicious asshole",
+            "The hardworking Mexican",
+            "White privilege",
+            "A good sniff",
+            "Campfire songs about Jesus",
+            "Inappropriate yodeling",
+            "My soul",
+            "A robust mongoloid",
+            "Sunshine and rainbows",
+            "Dead babies",
+            "Flesh-eating bacteria",
+            "Full frontal nudity",
+            "That thing that electrocutes your abs",
+            "Morgan Freeman's voice"
+        ];
+
+        // Initialize white cards database
+        whiteCardsDatabase = [...whiteCards];
+
+        // Utility functions
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function getRandomCards(deck, count) {
+            return shuffleArray(deck).slice(0, count);
+        }
+
+        // UI Management Functions
+        function showSection(sectionId) {
+            document.querySelectorAll('.game-section, #gameStatus, #roundInfo').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        function updatePlayersDisplay() {
+            const playersList = document.getElementById('playersList');
+            playersList.innerHTML = '';
+
+            gameState.players.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-card';
+                
+                if (player.id === gameState.hostId) {
+                    playerDiv.classList.add('host');
+                }
+                if (player.id === gameState.czarId) {
+                    playerDiv.classList.add('czar');
+                }
+
+                const isHost = currentPlayer.id === gameState.hostId;
+                const canKick = isHost && player.id !== gameState.hostId && gameState.gameStarted;
+
+                playerDiv.innerHTML = `
+                    ${canKick ? `<div class="player-actions">
+                        <button class="kick-btn" onclick="kickPlayer('${player.id}')">✕</button>
+                    </div>` : ''}
+                    <div class="player-name">
+                        ${player.name}
+                        ${player.id === gameState.hostId ? ' 👑' : ''}
+                        ${player.id === gameState.czarId ? ' 🎩' : ''}
+                    </div>
+                    <div class="player-score">Score: ${player.score}</div>
+                `;
+                playersList.appendChild(playerDiv);
+            });
+
+            if (currentPlayer.id === gameState.hostId && gameState.kickedPlayers.length > 0) {
+                const kickedHeader = document.createElement('h4');
+                kickedHeader.textContent = 'Kicked Players:';
+                kickedHeader.style.color = '#dc3545';
+                kickedHeader.style.marginTop = '20px';
+                kickedHeader.style.marginBottom = '10px';
+                playersList.appendChild(kickedHeader);
+
+                gameState.kickedPlayers.forEach(kickedPlayer => {
+                    const kickedDiv = document.createElement('div');
+                    kickedDiv.className = 'player-card kicked';
+                    kickedDiv.innerHTML = `
+                        <div class="player-name">${kickedPlayer.name} (Kicked)</div>
+                        <div class="player-score">Had: ${kickedPlayer.score} points</div>
+                    `;
+                    playersList.appendChild(kickedDiv);
+                });
+            }
+        }
+
+        function updateGameStatus(message) {
+            const statusEl = document.getElementById('gameStatus');
+            statusEl.textContent = message;
+            statusEl.classList.remove('hidden');
+        }
+
+        function updateRoundInfo() {
+            const roundInfoEl = document.getElementById('roundInfo');
+            if (gameState.gameStarted && gameState.currentRound > 0) {
+                const czar = gameState.players.find(p => p.id === gameState.czarId);
+                roundInfoEl.innerHTML = `Round ${gameState.currentRound} of ${gameState.rounds} | Card Czar: ${czar ? czar.name : 'None'}`;
+                roundInfoEl.classList.remove('hidden');
+            } else {
+                roundInfoEl.classList.add('hidden');
+            }
+        }
+
+        // Game Logic Functions
+        function joinGame() {
+            const nameInput = document.getElementById('playerName');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                alert('Please enter your name');
+                return;
+            }
+
+            const kickedPlayer = gameState.kickedPlayers.find(kp => kp.name.toLowerCase() === name.toLowerCase());
+            let playerId, newPlayer;
+
+            if (kickedPlayer) {
+                playerId = kickedPlayer.id;
+                newPlayer = {
+                    id: kickedPlayer.id,
+                    name: kickedPlayer.name,
+                    score: kickedPlayer.score,
+                    hand: []
+                };
+
+                gameState.kickedPlayers = gameState.kickedPlayers.filter(kp => kp.id !== kickedPlayer.id);
+                showRejoinMessage(kickedPlayer.name, kickedPlayer.score);
+            } else {
+                playerId = generateId();
+                newPlayer = {
+                    id: playerId,
+                    score: 0,
+                    hand: []
+                };
+            }
+
+            currentPlayer.id = playerId;
+            currentPlayer.name = newPlayer.name;
+
+            gameState.players.push(newPlayer);
+
+            if (gameState.players.length === 1 && !gameState.hostId) {
+                gameState.hostId = playerId;
+                document.getElementById('hostSection').classList.remove('hidden');
+            }
+
+            if (gameState.gameStarted) {
+                const availableCards = whiteCardsDatabase.filter(card => {
+                    const cardsInPlay = gameState.players
+                        .filter(p => p.id !== playerId)
+                        .flatMap(p => p.hand);
+                    return !cardsInPlay.includes(card);
+                });
+                newPlayer.hand = getRandomCards(availableCards, gameState.whiteCardCount);
+            }
+
+            document.getElementById('joinSection').classList.add('hidden');
+            updatePlayersDisplay();
+            
+            const statusMessage = kickedPlayer 
+                ? `${name} rejoined the game with ${kickedPlayer.score} points!`
+                : gameState.players.length === 1 
+                    ? `${name} joined the game. You are the host!`
+                    : gameState.gameStarted
+                        ? `${name} joined the game in progress.`
+                        : 'Waiting for host to start the game...';
+            
+            updateGameStatus(statusMessage);
+
+            if (gameState.gameStarted) {
+                updateUI();
+            }
+        }
+
+        function showRejoinMessage(playerName, score) {
+            const rejoinDiv = document.createElement('div');
+            rejoinDiv.className = 'rejoin-message';
+            rejoinDiv.textContent = `Welcome back, ${playerName}! You're rejoining with ${score} points.`;
+            
+            const playersSection = document.getElementById('playersSection');
+            playersSection.parentNode.insertBefore(rejoinDiv, playersSection);
+            
+            setTimeout(() => {
+                if (rejoinDiv.parentNode) {
+                    rejoinDiv.parentNode.removeChild(rejoinDiv);
+                }
+            }, 5000);
+        }
+
+        function kickPlayer(playerId) {
+            const player = gameState.players.find(p => p.id === playerId);
+            if (!player || playerId === gameState.hostId) return;
+
+            if (!confirm(`Kick ${player.name} from the game?`)) return;
+
+            const kickedPlayerData = {
+                id: player.id,
+                name: player.name,
+                score: player.score,
+                kickedAt: Date.now()
+            };
+            gameState.kickedPlayers.push(kickedPlayerData);
+
+            gameState.players = gameState.players.filter(p => p.id !== playerId);
+            gameState.pendingSubmissions = gameState.pendingSubmissions.filter(id => id !== playerId);
+            gameState.submissions = gameState.submissions.filter(s => s.playerId !== playerId);
+
+            if (gameState.czarId === playerId) {
+                const remainingPlayers = gameState.players.filter(p => p.id !== gameState.hostId);
+                if (remainingPlayers.length > 0) {
+                    gameState.czarId = remainingPlayers[0].id;
+                } else if (gameState.players.length > 0) {
+                    gameState.czarId = gameState.players[0].id;
+                }
+
+                if (gameState.roundPhase === 'czar_select') {
+                    startRound();
+                    return;
+                }
+            }
+
+            updatePlayersDisplay();
+            updateGameStatus(`${player.name} has been removed from the game.`);
+
+            if (gameState.pendingSubmissions.length === 0 && gameState.roundPhase === 'player_submit') {
+                gameState.roundPhase = 'judge_select';
+                showJudging();
+            }
+
+            if (gameState.players.length < 3 && gameState.gameStarted) {
+                updateGameStatus('Not enough players to continue. Waiting for more players to join...');
+                gameState.gameStarted = false;
+                gameState.roundPhase = 'waiting';
+                showSection('playersSection');
+            }
+
+            saveKickedPlayerToBackend(kickedPlayerData);
+        }
+
+        function startGame() {
+            if (gameState.players.length < 3) {
+                alert('Need at least 3 players to start');
+                return;
+            }
+
+            gameState.whiteCardCount = parseInt(document.getElementById('whiteCardCount').value);
+            gameState.rounds = parseInt(document.getElementById('roundCount').value);
+            gameState.gameStarted = true;
+            gameState.currentRound = 1;
+
+            gameState.players.forEach(player => {
+                player.hand = getRandomCards(whiteCardsDatabase, gameState.whiteCardCount);
+            });
+
+            gameState.czarId = gameState.hostId;
+            gameState.roundPhase = 'czar_select';
+
+            document.getElementById('hostSection').classList.add('hidden');
+            startRound();
+        }
+
+        function startRound() {
+            gameState.submissions = [];
+            gameState.pendingSubmissions = gameState.players.filter(p => p.id !== gameState.czarId).map(p => p.id);
+            selectedBlackCardIndex = null;
+            selectedSubmissionIndex = null;
+            currentPlayer.selectedCard = null;
+            currentPlayer.customAnswer = '';
+
+            updateRoundInfo();
+
+            if (currentPlayer.id === gameState.czarId) {
+                showCzarSelection();
+            } else {
+                updateGameStatus('Waiting for Card Czar to select a black card...');
+            }
+        }
+
+        function showCzarSelection() {
+            gameState.selectedBlackCardOptions = getRandomCards(blackCards, 3);
+            
+            const blackCardOptions = document.getElementById('blackCardOptions');
+            blackCardOptions.innerHTML = '';
+
+            gameState.selectedBlackCardOptions.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'black-card';
+                cardDiv.textContent = card;
+                cardDiv.onclick = () => selectBlackCardOption(index);
+                blackCardOptions.appendChild(cardDiv);
+            });
+
+            showSection('czarSection');
+            updateGameStatus('You are the Card Czar! Choose a black card to start the round.');
+        }
+
+        function selectBlackCardOption(index) {
+            selectedBlackCardIndex = index;
+            
+            document.querySelectorAll('#blackCardOptions .black-card').forEach((card, i) => {
+                card.classList.toggle('selected', i === index);
+            });
+            
+            document.getElementById('selectBlackCardBtn').disabled = false;
+        }
+
+        function redrawBlackCards() {
+            gameState.selectedBlackCardOptions = getRandomCards(blackCards, 3);
+            selectedBlackCardIndex = null;
+            document.getElementById('selectBlackCardBtn').disabled = true;
+            
+            const blackCardOptions = document.getElementById('blackCardOptions');
+            blackCardOptions.innerHTML = '';
+
+            gameState.selectedBlackCardOptions.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'black-card';
+                cardDiv.textContent = card;
+                cardDiv.onclick = () => selectBlackCardOption(index);
+                blackCardOptions.appendChild(cardDiv);
+            });
+        }
+
+        function selectBlackCard() {
+            if (selectedBlackCardIndex === null) return;
+
+            gameState.activeBlackCard = gameState.selectedBlackCardOptions[selectedBlackCardIndex];
+            gameState.roundPhase = 'player_submit';
+
+            showPlayerSubmission();
+        }
+
+        function showPlayerSubmission() {
+            document.getElementById('activeBlackCard').textContent = gameState.activeBlackCard;
+            document.getElementById('activeBlackCardJudge').textContent = gameState.activeBlackCard;
+
+            if (currentPlayer.id === gameState.czarId) {
+                showSection('submissionsSection');
+                updateSubmissionsDisplay();
+                updateGameStatus('Waiting for players to submit their answers...');
+            } else {
+                showSection('roundSection');
+                updatePlayerHand();
+                updateGameStatus('Choose a white card or type a custom answer, then submit!');
+            }
+        }
+
+        function updatePlayerHand() {
+            const player = gameState.players.find(p => p.id === currentPlayer.id);
+            if (!player) return;
+
+            const whiteCardsDiv = document.getElementById('whiteCards');
+            whiteCardsDiv.innerHTML = '';
+
+            player.hand.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'white-card';
+                cardDiv.textContent = card;
+                cardDiv.onclick = () => selectWhiteCard(index);
+                whiteCardsDiv.appendChild(cardDiv);
+            });
+
+            document.getElementById('customAnswerInput').value = '';
+            updateSubmitButton();
+        }
+
+        function selectWhiteCard(index) {
+            const player = gameState.players.find(p => p.id === currentPlayer.id);
+            currentPlayer.selectedCard = index;
+            currentPlayer.customAnswer = '';
+            
+            document.querySelectorAll('#whiteCards .white-card').forEach((card, i) => {
+                card.classList.toggle('selected', i === index);
+            });
+            
+            document.getElementById('customAnswerInput').value = '';
+            updateSubmitButton();
+        }
+
+        function updateSubmitButton() {
+            const hasSelection = currentPlayer.selectedCard !== null || currentPlayer.customAnswer.trim();
+            document.getElementById('submitAnswerBtn').disabled = !hasSelection;
+        }
+
+        function submitAnswer() {
+            let answer;
+            let isCustom = false;
+
+            if (currentPlayer.customAnswer) {
+                answer = currentPlayer.customAnswer;
+                isCustom = true;
+                logCustomAnswer(answer, currentPlayer.name, gameState.activeBlackCard);
+            } else if (currentPlayer.selectedCard !== null) {
+                const player = gameState.players.find(p => p.id === currentPlayer.id);
+                answer = player.hand[currentPlayer.selectedCard];
+                
+                player.hand.splice(currentPlayer.selectedCard, 1);
+                const availableCards = whiteCardsDatabase.filter(card => !player.hand.includes(card));
+                if (availableCards.length > 0) {
+                    player.hand.push(getRandomCards(availableCards, 1)[0]);
+                }
+            } else {
+                return;
+            }
+
+            gameState.submissions.push({
+                playerId: currentPlayer.id,
+                answer: answer,
+                isCustom: isCustom
+            });
+
+            gameState.pendingSubmissions = gameState.pendingSubmissions.filter(id => id !== currentPlayer.id);
+
+            currentPlayer.selectedCard = null;
+            currentPlayer.customAnswer = '';
+
+            updateGameStatus('Answer submitted! Waiting for other players...');
+
+            if (gameState.pendingSubmissions.length === 0) {
+                gameState.roundPhase = 'judge_select';
+                showJudging();
+            } else {
+                showSection('submissionsSection');
+                updateSubmissionsDisplay();
+            }
+        }
+
+        function showJudging() {
+            showSection('submissionsSection');
+            gameState.submissions = shuffleArray(gameState.submissions);
+            updateSubmissionsDisplay();
+            updateGameStatus(currentPlayer.id === gameState.czarId ? 'Choose the winning answer!' : 'Card Czar is choosing the winner...');
+        }
+
+        function updateSubmissionsDisplay() {
+            const submissionsGrid = document.getElementById('submissionsGrid');
+            const pendingDiv = document.getElementById('pendingSubmissions');
+            const judgeActions = document.getElementById('judgeActions');
+
+            if (gameState.pendingSubmissions.length > 0) {
+                const pendingNames = gameState.pendingSubmissions.map(id => {
+                    const player = gameState.players.find(p => p.id === id);
+                    return player ? player.name : 'Unknown';
+                });
+                pendingDiv.textContent = `Waiting for: ${pendingNames.join(', ')}`;
+                pendingDiv.style.display = 'block';
+            } else {
+                pendingDiv.style.display = 'none';
+            }
+
+            submissionsGrid.innerHTML = '';
+            if (gameState.pendingSubmissions.length === 0 && gameState.submissions.length > 0) {
+                gameState.submissions.forEach((submission, index) => {
+                    const submissionDiv = document.createElement('div');
+                    submissionDiv.className = 'submission-card';
+                    submissionDiv.textContent = submission.answer;
+                    
+                    if (currentPlayer.id === gameState.czarId) {
+                        submissionDiv.onclick = () => selectSubmission(index);
+                    }
+                    
+                    submissionsGrid.appendChild(submissionDiv);
+                });
+            }
+
+            judgeActions.style.display = currentPlayer.id === gameState.czarId && gameState.pendingSubmissions.length === 0 ? 'flex' : 'none';
+        }
+
+        function selectSubmission(index) {
+            selectedSubmissionIndex = index;
+            
+            document.querySelectorAll('#submissionsGrid .submission-card').forEach((card, i) => {
+                card.classList.toggle('selected', i === index);
+            });
+            
+            document.getElementById('selectWinnerBtn').disabled = false;
+        }
+
+        function selectWinner() {
+            if (selectedSubmissionIndex === null) return;
+
+            const winningSubmission = gameState.submissions[selectedSubmissionIndex];
+            const winner = gameState.players.find(p => p.id === winningSubmission.playerId);
+            
+            if (winner) {
+                winner.score += 1;
+                
+                document.querySelectorAll('#submissionsGrid .submission-card').forEach((card, i) => {
+                    if (i === selectedSubmissionIndex) {
+                        card.classList.add('winner');
+                    }
+                });
+                
+                updateGameStatus(`🎉 ${winner.name} wins this round with: "${winningSubmission.answer}"`);
+                updatePlayersDisplay();
+
+                gameState.czarId = winner.id;
+                
+                setTimeout(() => {
+                    nextRound();
+                }, 3000);
+            }
+        }
+
+        function nextRound() {
+            gameState.currentRound++;
+            
+            if (gameState.currentRound > gameState.rounds) {
+                endGame();
+                return;
+            }
+
+            gameState.roundPhase = 'czar_select';
+            startRound();
+        }
+
+        function endGame() {
+            const maxScore = Math.max(...gameState.players.map(p => p.score));
+            const winners = gameState.players.filter(p => p.score === maxScore);
+            
+            let message;
+            if (winners.length === 1) {
+                message = `🏆 Game Over! ${winners[0].name} wins with ${maxScore} points!`;
+            } else {
+                const winnerNames = winners.map(w => w.name).join(' and ');
+                message = `🏆 Game Over! It's a tie between ${winnerNames} with ${maxScore} points each!`;
+            }
+            
+            updateGameStatus(message);
+            document.getElementById('roundInfo').classList.add('hidden');
+            updatePlayersDisplay();
+            
+            setTimeout(() => {
+                if (confirm('Game finished! Would you like to start a new game?')) {
+                    resetGame();
+                }
+            }, 3000);
+        }
+
+        function resetGame() {
+            gameState = {
+                players: [],
+                hostId: null,
+                currentRound: 0,
+                rounds: 10,
+                whiteCardCount: 7,
+                czarId: null,
+                selectedBlackCardOptions: [],
+                activeBlackCard: null,
+                submissions: [],
+                pendingSubmissions: [],
+                gameStarted: false,
+                roundPhase: 'waiting',
+                kickedPlayers: []
+            };
+
+            currentPlayer = {
+                id: null,
+                name: '',
+                hand: [],
+                selectedCard: null,
+                customAnswer: ''
+            };
+
+            selectedBlackCardIndex = null;
+            selectedSubmissionIndex = null;
+            
+            document.getElementById('joinSection').classList.remove('hidden');
+            document.getElementById('hostSection').classList.add('hidden');
+            document.getElementById('gameStatus').classList.add('hidden');
+            document.getElementById('roundInfo').classList.add('hidden');
+            
+            document.getElementById('playerName').value = '';
+            document.getElementById('whiteCardCount').value = '7';
+            document.getElementById('roundCount').value = '10';
+        }
+
+        function redrawHand() {
+            const player = gameState.players.find(p => p.id === currentPlayer.id);
+            if (!player) return;
+
+            const usedCards = gameState.submissions
+                .filter(s => !s.isCustom)
+                .map(s => s.answer);
+            
+            const availableCards = whiteCardsDatabase.filter(card => !usedCards.includes(card));
+            player.hand = getRandomCards(availableCards, gameState.whiteCardCount);
+            
+            currentPlayer.selectedCard = null;
+            currentPlayer.customAnswer = '';
+            document.getElementById('customAnswerInput').value = '';
+            
+            updatePlayerHand();
+        }
+
+        // Admin Functions
+        function toggleAdminMode() {
+            isAdminMode = !isAdminMode;
+            
+            if (isAdminMode) {
+                showSection('adminSection');
+                updateAdminDisplay();
+                document.getElementById('adminToggle').textContent = 'Exit Admin';
+            } else {
+                showSection('joinSection');
+                document.getElementById('adminToggle').textContent = 'Admin Mode';
+            }
+        }
+
+        function logCustomAnswer(answer, playerName, blackCard) {
+            const entry = {
+                answer: answer,
+                player: playerName,
+                blackCard: blackCard,
+                timestamp: new Date().toISOString(),
+                round: gameState.currentRound,
+                approved: false
+            };
+            
+            customAnswersLog.push(entry);
+            saveCustomAnswersToBackend(entry);
+            
+            if (isAdminMode) {
+                updateCustomAnswersDisplay();
+            }
+        }
+
+        function updateAdminDisplay() {
+            updateCustomAnswersDisplay();
+            updateCardManagementDisplay();
+            updateAdminStats();
+        }
+
+        function updateCustomAnswersDisplay() {
+            const logContainer = document.getElementById('customAnswersLog');
+            
+            if (customAnswersLog.length === 0) {
+                logContainer.innerHTML = '<p>No custom answers recorded yet.</p>';
+                return;
+            }
+
+            logContainer.innerHTML = '';
+            customAnswersLog.slice().reverse().forEach((entry, index) => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'custom-answer-entry';
+                entryDiv.innerHTML = `
+                    <div class="answer-text">"${entry.answer}"</div>
+                    <div class="answer-meta">
+                        ${entry.player} • Round ${entry.round} • ${new Date(entry.timestamp).toLocaleString()}
+                        <br>Black Card: "${entry.blackCard}"
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button class="btn-small btn-success" onclick="approveCustomAnswer(${customAnswersLog.length - 1 - index})" 
+                                ${entry.approved ? 'disabled' : ''}>
+                            ${entry.approved ? 'Added to Deck' : 'Add to Deck'}
+                        </button>
+                        <button class="btn-small btn-danger" onclick="removeCustomAnswer(${customAnswersLog.length - 1 - index})">
+                            Remove
+                        </button>
+                    </div>
+                `;
+                logContainer.appendChild(entryDiv);
+            });
+        }
+
+        function updateCardManagementDisplay(searchTerm = '') {
+            const listContainer = document.getElementById('cardManagementList');
+            listContainer.innerHTML = '';
+
+            const filteredCards = searchTerm 
+                ? whiteCardsDatabase.filter(card => card.toLowerCase().includes(searchTerm.toLowerCase()))
+                : whiteCardsDatabase.slice(0, 50);
+
+            if (filteredCards.length === 0) {
+                listContainer.innerHTML = '<p>No cards found.</p>';
+                return;
+            }
+
+            filteredCards.forEach((card, index) => {
+                const actualIndex = whiteCardsDatabase.indexOf(card);
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card-entry';
+                cardDiv.innerHTML = `
+                    <div class="card-text">"${card}"</div>
+                    <div class="card-actions">
+                        <button class="btn-small btn-danger" onclick="removeCard(${actualIndex})">Remove</button>
+                    </div>
+                `;
+                listContainer.appendChild(cardDiv);
+            });
+
+            if (searchTerm === '' && whiteCardsDatabase.length > 50) {
+                const moreDiv = document.createElement('div');
+                moreDiv.innerHTML = `<p style="text-align: center; color: #aaa; margin-top: 15px;">Showing first 50 of ${whiteCardsDatabase.length} cards. Use search to find specific cards.</p>`;
+                listContainer.appendChild(moreDiv);
+            }
+        }
+
+        function updateAdminStats() {
+            let statsDiv = document.getElementById('adminStats');
+            if (!statsDiv) {
+                statsDiv = document.createElement('div');
+                statsDiv.id = 'adminStats';
+                statsDiv.className = 'stats-display';
+                document.querySelector('#adminSection .admin-controls').insertBefore(statsDiv, document.querySelector('#adminSection .admin-group'));
+            }
+
+            const approvedCustoms = customAnswersLog.filter(entry => entry.approved).length;
+            const pendingCustoms = customAnswersLog.length - approvedCustoms;
+
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${whiteCardsDatabase.length}</div>
+                    <div class="stat-label">Total White Cards</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${customAnswersLog.length}</div>
+                    <div class="stat-label">Custom Answers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${pendingCustoms}</div>
+                    <div class="stat-label">Pending Review</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${approvedCustoms}</div>
+                    <div class="stat-label">Added to Deck</div>
+                </div>
+            `;
+        }
+
+        function approveCustomAnswer(index) {
+            const entry = customAnswersLog[index];
+            if (!entry || entry.approved) return;
+
+            whiteCardsDatabase.push(entry.answer);
+            entry.approved = true;
+
+            updateCustomAnswersDisplay();
+            updateCardManagementDisplay();
+            updateAdminStats();
+
+            saveCardToBackend(entry.answer);
+        }
+
+        function removeCustomAnswer(index) {
+            if (confirm('Remove this custom answer from the log?')) {
+                customAnswersLog.splice(index, 1);
+                updateCustomAnswersDisplay();
+                updateAdminStats();
+            }
+        }
+
+        function removeCard(index) {
+            const card = whiteCardsDatabase[index];
+            if (confirm(`Remove "${card}" from the white card database?`)) {
+                whiteCardsDatabase.splice(index, 1);
+                updateCardManagementDisplay();
+                updateAdminStats();
+                removeCardFromBackend(card);
+            }
+        }
+
+        function addNewCard() {
+            const input = document.getElementById('newCardInput');
+            const newCard = input.value.trim();
+            
+            if (!newCard) {
+                alert('Please enter a card text');
+                return;
+            }
+
+            if (whiteCardsDatabase.includes(newCard)) {
+                alert('This card already exists in the database');
+                return;
+            }
+
+            whiteCardsDatabase.push(newCard);
+            input.value = '';
+            updateCardManagementDisplay();
+            updateAdminStats();
+            saveCardToBackend(newCard);
+        }
+
+        function searchCards() {
+            const searchTerm = document.getElementById('cardSearchInput').value.trim();
+            updateCardManagementDisplay(searchTerm);
+        }
+
+        function clearCustomAnswers() {
+            if (confirm('Clear all custom answers from the log? This cannot be undone.')) {
+                customAnswersLog = [];
+                updateCustomAnswersDisplay();
+                updateAdminStats();
+            }
+        }
+
+        function exportCustomAnswers() {
+            if (customAnswersLog.length === 0) {
+                alert('No custom answers to export');
+                return;
+            }
+
+            const headers = ['Answer', 'Player', 'Black Card', 'Round', 'Timestamp', 'Status'];
+            const csvContent = [
+                headers.join(','),
+                ...customAnswersLog.map(entry => [
+                    `"${entry.answer.replace(/"/g, '""')}"`,
+                    `"${entry.player}"`,
+                    `"${entry.blackCard.replace(/"/g, '""')}"`,
+                    entry.round,
+                    entry.timestamp,
+                    entry.approved ? 'Added to Deck' : 'Pending'
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `custom_answers_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function updateUI() {
+            updatePlayersDisplay();
+            updateRoundInfo();
+            
+            switch (gameState.roundPhase) {
+                case 'waiting':
+                    updateGameStatus('Waiting for game to start...');
+                    break;
+                case 'czar_select':
+                    if (currentPlayer.id === gameState.czarId) {
+                        showCzarSelection();
+                    } else {
+                        updateGameStatus('Waiting for Card Czar to select a black card...');
+                    }
+                    break;
+                case 'player_submit':
+                    showPlayerSubmission();
+                    break;
+                case 'judge_select':
+                    showJudging();
+                    break;
+            }
+        }
+
+        function handlePlayerDisconnect(playerId) {
+            gameState.pendingSubmissions = gameState.pendingSubmissions.filter(id => id !== playerId);
+            
+            if (gameState.pendingSubmissions.length === 0 && gameState.roundPhase === 'player_submit') {
+                gameState.roundPhase = 'judge_select';
+                showJudging();
+            }
+        }
+
+        // Backend Integration Functions (stubs for future implementation)
+        function saveGameStateToBackend() {}
+        function saveKickedPlayerToBackend(kickedPlayerData) {}
+        function loadKickedPlayersFromBackend() {}
+        function saveCustomAnswersToBackend(customAnswerEntry) {}
+        function saveCardToBackend(cardText) {}
+        function removeCardFromBackend(cardText) {}
+        function loadGameStateFromBackend() {}
+        function loadCardsFromBackend() {}
+        function loadCustomAnswersFromBackend() {}
+
+        // Event Listeners
+        document.getElementById('playerName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                joinGame();
+            }
+        });
+
+        document.getElementById('customAnswerInput').addEventListener('input', function(e) {
+            currentPlayer.customAnswer = e.target.value.trim();
+            
+            if (currentPlayer.customAnswer) {
+                currentPlayer.selectedCard = null;
+                document.querySelectorAll('#whiteCards .white-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+            }
+            
+            updateSubmitButton();
+        });
+
+        document.getElementById('customAnswerInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('submitAnswerBtn').disabled) {
+                submitAnswer();
+            }
+        });
+
+        document.getElementById('cardSearchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchCards();
+            }
+        });
+
+        document.getElementById('newCardInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addNewCard();
+            }
+        });
+
+        window.addEventListener('beforeunload', function(e) {
+            if (gameState.gameStarted && currentPlayer.id) {
+                e.preventDefault();
+                e.returnValue = 'Are you sure you want to leave the game?';
+            }
+        });
+
+        // Initialize the game
+        document.addEventListener('DOMContentLoaded', function() {
+            updateGameStatus('Welcome! Enter your name to join the game.');
+            loadCardsFromBackend();
+            loadCustomAnswersFromBackend();
+            loadKickedPlayersFromBackend();
+            loadGameStateFromBackend();
+        });
+
+        setInterval(() => {
+            if (gameState.gameStarted) {
+                saveGameStateToBackend();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
