@@ -556,17 +556,42 @@
                 </div>
                 
                 <div class="admin-group">
+                    <h3>Black Card Management</h3>
+                    <div class="card-search">
+                        <input type="text" id="blackCardSearchInput" placeholder="Search black cards..." style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-right: 10px; width: 300px;">
+                        <button class="btn btn-secondary" onclick="searchBlackCards()">Search</button>
+                    </div>
+                    <div id="blackCardManagementList" class="card-management-list">
+                        <!-- Black cards will be populated here -->
+                    </div>
+                    <div class="actions" style="margin-top: 15px;">
+                        <input type="text" id="newBlackCardInput" placeholder="Add new black card..." style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 400px; margin-right: 10px;">
+                        <button class="btn" onclick="addNewBlackCard()">Add Black Card</button>
+                    </div>
+                    <div class="actions" style="margin-top: 10px;">
+                        <textarea id="bulkBlackCardsInput" placeholder="Paste multiple black cards, one per line..." style="width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical;"></textarea>
+                        <button class="btn btn-secondary" onclick="bulkAddBlackCards()" style="margin-top: 10px;">Bulk Add Black Cards</button>
+                        <button class="btn btn-danger" onclick="clearAllBlackCards()" style="margin-top: 10px;">Clear All Black Cards</button>
+                    </div>
+                </div>
+                
+                <div class="admin-group">
                     <h3>White Card Management</h3>
                     <div class="card-search">
-                        <input type="text" id="cardSearchInput" placeholder="Search cards..." style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-right: 10px; width: 300px;">
+                        <input type="text" id="cardSearchInput" placeholder="Search white cards..." style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-right: 10px; width: 300px;">
                         <button class="btn btn-secondary" onclick="searchCards()">Search</button>
                     </div>
                     <div id="cardManagementList" class="card-management-list">
-                        <!-- Cards will be populated here -->
+                        <!-- White cards will be populated here -->
                     </div>
                     <div class="actions" style="margin-top: 15px;">
                         <input type="text" id="newCardInput" placeholder="Add new white card..." style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 400px; margin-right: 10px;">
-                        <button class="btn" onclick="addNewCard()">Add Card</button>
+                        <button class="btn" onclick="addNewCard()">Add White Card</button>
+                    </div>
+                    <div class="actions" style="margin-top: 10px;">
+                        <textarea id="bulkWhiteCardsInput" placeholder="Paste multiple white cards, one per line..." style="width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical;"></textarea>
+                        <button class="btn btn-secondary" onclick="bulkAddWhiteCards()" style="margin-top: 10px;">Bulk Add White Cards</button>
+                        <button class="btn btn-danger" onclick="clearAllWhiteCards()" style="margin-top: 10px;">Clear All White Cards</button>
                     </div>
                 </div>
             </div>
@@ -721,9 +746,10 @@
         // Custom answers tracking
         let customAnswersLog = [];
         let whiteCardsDatabase = [];
+        let blackCardsDatabase = [];
 
-        // Sample card data
-        const blackCards = [
+        // Sample card data (will be replaced with your custom decks)
+        const defaultBlackCards = [
             "___: kid tested, mother approved.",
             "___? There's an app for that.",
             "What's the next Happy Meal toy?",
@@ -746,7 +772,7 @@
             "What will always get you laid?"
         ];
 
-        const whiteCards = [
+        const defaultWhiteCards = [
             "A mime having a stroke",
             "The Big Bang",
             "Getting so angry you pop a boner",
@@ -789,8 +815,9 @@
             "Morgan Freeman's voice"
         ];
 
-        // Initialize white cards database
-        whiteCardsDatabase = [...whiteCards];
+        // Initialize card databases with defaults (can be replaced with your custom decks)
+        blackCardsDatabase = [...defaultBlackCards];
+        whiteCardsDatabase = [...defaultWhiteCards];
 
         // Utility functions
         function generateId() {
@@ -1063,7 +1090,7 @@
         }
 
         function showCzarSelection() {
-            gameState.selectedBlackCardOptions = getRandomCards(blackCards, 3);
+            gameState.selectedBlackCardOptions = getRandomCards(blackCardsDatabase, 3);
             
             const blackCardOptions = document.getElementById('blackCardOptions');
             blackCardOptions.innerHTML = '';
@@ -1091,7 +1118,7 @@
         }
 
         function redrawBlackCards() {
-            gameState.selectedBlackCardOptions = getRandomCards(blackCards, 3);
+            gameState.selectedBlackCardOptions = getRandomCards(blackCardsDatabase, 3);
             selectedBlackCardIndex = null;
             document.getElementById('selectBlackCardBtn').disabled = true;
             
@@ -1414,6 +1441,7 @@
         function updateAdminDisplay() {
             updateCustomAnswersDisplay();
             updateCardManagementDisplay();
+            updateBlackCardManagementDisplay();
             updateAdminStats();
         }
 
@@ -1496,8 +1524,12 @@
 
             statsDiv.innerHTML = `
                 <div class="stat-card">
+                    <div class="stat-number">${blackCardsDatabase.length}</div>
+                    <div class="stat-label">Black Cards</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-number">${whiteCardsDatabase.length}</div>
-                    <div class="stat-label">Total White Cards</div>
+                    <div class="stat-label">White Cards</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number">${customAnswersLog.length}</div>
@@ -1507,11 +1539,158 @@
                     <div class="stat-number">${pendingCustoms}</div>
                     <div class="stat-label">Pending Review</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-number">${approvedCustoms}</div>
-                    <div class="stat-label">Added to Deck</div>
-                </div>
             `;
+        }
+
+        // Black Card Management Functions
+        function updateBlackCardManagementDisplay(searchTerm = '') {
+            const listContainer = document.getElementById('blackCardManagementList');
+            listContainer.innerHTML = '';
+
+            const filteredCards = searchTerm 
+                ? blackCardsDatabase.filter(card => card.toLowerCase().includes(searchTerm.toLowerCase()))
+                : blackCardsDatabase.slice(0, 50);
+
+            if (filteredCards.length === 0) {
+                listContainer.innerHTML = '<p>No black cards found.</p>';
+                return;
+            }
+
+            filteredCards.forEach((card, index) => {
+                const actualIndex = blackCardsDatabase.indexOf(card);
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card-entry';
+                cardDiv.innerHTML = `
+                    <div class="card-text">"${card}"</div>
+                    <div class="card-actions">
+                        <button class="btn-small btn-danger" onclick="removeBlackCard(${actualIndex})">Remove</button>
+                    </div>
+                `;
+                listContainer.appendChild(cardDiv);
+            });
+
+            if (searchTerm === '' && blackCardsDatabase.length > 50) {
+                const moreDiv = document.createElement('div');
+                moreDiv.innerHTML = `<p style="text-align: center; color: #aaa; margin-top: 15px;">Showing first 50 of ${blackCardsDatabase.length} cards. Use search to find specific cards.</p>`;
+                listContainer.appendChild(moreDiv);
+            }
+        }
+
+        function addNewBlackCard() {
+            const input = document.getElementById('newBlackCardInput');
+            const newCard = input.value.trim();
+            
+            if (!newCard) {
+                alert('Please enter a black card text');
+                return;
+            }
+
+            if (blackCardsDatabase.includes(newCard)) {
+                alert('This black card already exists in the database');
+                return;
+            }
+
+            blackCardsDatabase.push(newCard);
+            input.value = '';
+            updateBlackCardManagementDisplay();
+            updateAdminStats();
+            saveBlackCardToBackend(newCard);
+        }
+
+        function removeBlackCard(index) {
+            const card = blackCardsDatabase[index];
+            if (confirm(`Remove "${card}" from the black card database?`)) {
+                blackCardsDatabase.splice(index, 1);
+                updateBlackCardManagementDisplay();
+                updateAdminStats();
+                removeBlackCardFromBackend(card);
+            }
+        }
+
+        function searchBlackCards() {
+            const searchTerm = document.getElementById('blackCardSearchInput').value.trim();
+            updateBlackCardManagementDisplay(searchTerm);
+        }
+
+        function bulkAddBlackCards() {
+            const textarea = document.getElementById('bulkBlackCardsInput');
+            const cards = textarea.value.split('\n').map(card => card.trim()).filter(card => card);
+            
+            if (cards.length === 0) {
+                alert('Please enter some black cards, one per line');
+                return;
+            }
+
+            let addedCount = 0;
+            let skippedCount = 0;
+
+            cards.forEach(card => {
+                if (!blackCardsDatabase.includes(card)) {
+                    blackCardsDatabase.push(card);
+                    addedCount++;
+                    saveBlackCardToBackend(card);
+                } else {
+                    skippedCount++;
+                }
+            });
+
+            textarea.value = '';
+            updateBlackCardManagementDisplay();
+            updateAdminStats();
+            
+            alert(`Added ${addedCount} black cards. Skipped ${skippedCount} duplicates.`);
+        }
+
+        function clearAllBlackCards() {
+            if (confirm('Are you sure you want to remove ALL black cards? This cannot be undone!')) {
+                if (confirm('This will make the game unplayable until you add new black cards. Are you absolutely sure?')) {
+                    blackCardsDatabase = [];
+                    updateBlackCardManagementDisplay();
+                    updateAdminStats();
+                    clearAllBlackCardsFromBackend();
+                }
+            }
+        }
+
+        // Enhanced White Card Management
+        function bulkAddWhiteCards() {
+            const textarea = document.getElementById('bulkWhiteCardsInput');
+            const cards = textarea.value.split('\n').map(card => card.trim()).filter(card => card);
+            
+            if (cards.length === 0) {
+                alert('Please enter some white cards, one per line');
+                return;
+            }
+
+            let addedCount = 0;
+            let skippedCount = 0;
+
+            cards.forEach(card => {
+                if (!whiteCardsDatabase.includes(card)) {
+                    whiteCardsDatabase.push(card);
+                    addedCount++;
+                    saveCardToBackend(card);
+                } else {
+                    skippedCount++;
+                }
+            });
+
+            textarea.value = '';
+            updateCardManagementDisplay();
+            updateAdminStats();
+            
+            alert(`Added ${addedCount} white cards. Skipped ${skippedCount} duplicates.`);
+        }
+
+        function clearAllWhiteCards() {
+            if (confirm('Are you sure you want to remove ALL white cards? This cannot be undone!')) {
+                if (confirm('This will make the game unplayable until you add new white cards. Are you absolutely sure?')) {
+                    whiteCardsDatabase = [];
+                    updateCardManagementDisplay();
+                    updateAdminStats();
+                    clearAllWhiteCardsFromBackend();
+                }
+            }
         }
 
         function approveCustomAnswer(index) {
@@ -1646,6 +1825,10 @@
         function saveCustomAnswersToBackend(customAnswerEntry) {}
         function saveCardToBackend(cardText) {}
         function removeCardFromBackend(cardText) {}
+        function saveBlackCardToBackend(cardText) {}
+        function removeBlackCardFromBackend(cardText) {}
+        function clearAllBlackCardsFromBackend() {}
+        function clearAllWhiteCardsFromBackend() {}
         function loadGameStateFromBackend() {}
         function loadCardsFromBackend() {}
         function loadCustomAnswersFromBackend() {}
@@ -1685,6 +1868,18 @@
         document.getElementById('newCardInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 addNewCard();
+            }
+        });
+
+        document.getElementById('blackCardSearchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchBlackCards();
+            }
+        });
+
+        document.getElementById('newBlackCardInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addNewBlackCard();
             }
         });
 
