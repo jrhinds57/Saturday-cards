@@ -799,25 +799,134 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- Firebase SDK - Using different CDN for better compatibility -->
+    <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/compat/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/compat/database.js"></script>
 
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyA7hz07OZNNNLPKlQFw1j5vEiewwPOOUOQ",
-            authDomain: "saturday-night-cards.firebaseapp.com",
-            databaseURL: "https://saturday-night-cards-default-rtdb.firebaseio.com",
-            projectId: "saturday-night-cards",
-            storageBucket: "saturday-night-cards.firebasestorage.app",
-            messagingSenderId: "216085215949",
-            appId: "1:216085215949:web:1a08c0096000713518c784"
-        };
+        // Wait for Firebase to load before initializing
+        window.addEventListener('load', function() {
+            // Check if Firebase loaded successfully
+            if (typeof firebase === 'undefined') {
+                console.error('Firebase failed to load, falling back to local mode');
+                initializeLocalMode();
+                return;
+            }
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+            try {
+                // Firebase Configuration
+                const firebaseConfig = {
+                    apiKey: "AIzaSyA7hz07OZNNNLPKlQFw1j5vEiewwPOOUOQ",
+                    authDomain: "saturday-night-cards.firebaseapp.com",
+                    databaseURL: "https://saturday-night-cards-default-rtdb.firebaseio.com",
+                    projectId: "saturday-night-cards",
+                    storageBucket: "saturday-night-cards.firebasestorage.app",
+                    messagingSenderId: "216085215949",
+                    appId: "1:216085215949:web:1a08c0096000713518c784"
+                };
+
+                // Initialize Firebase
+                firebase.initializeApp(firebaseConfig);
+                window.database = firebase.database();
+                console.log('Firebase initialized successfully');
+                
+                // Initialize the app
+                initializeApp();
+            } catch (error) {
+                console.error('Firebase initialization failed:', error);
+                initializeLocalMode();
+            }
+        });
+
+        // Fallback to local mode if Firebase fails
+        function initializeLocalMode() {
+            console.log('Running in local mode - multiplayer features disabled');
+            
+            // Create mock database for local testing
+            const mockDatabase = {
+                data: {},
+                
+                setData: function(path, data) {
+                    const keys = path.split('/');
+                    let current = this.data;
+                    
+                    for (let i = 0; i < keys.length - 1; i++) {
+                        if (!current[keys[i]]) current[keys[i]] = {};
+                        current = current[keys[i]];
+                    }
+                    
+                    current[keys[keys.length - 1]] = data;
+                    
+                    try {
+                        localStorage.setItem('cardsGameData', JSON.stringify(this.data));
+                    } catch (e) {
+                        console.log('LocalStorage not available');
+                    }
+                },
+                
+                getData: function(path) {
+                    try {
+                        const stored = localStorage.getItem('cardsGameData');
+                        if (stored) {
+                            this.data = JSON.parse(stored);
+                        }
+                    } catch (e) {
+                        console.log('LocalStorage not available');
+                    }
+                    
+                    const keys = path.split('/');
+                    let current = this.data;
+                    
+                    for (const key of keys) {
+                        if (!current || !current[key]) return null;
+                        current = current[key];
+                    }
+                    
+                    return current;
+                },
+                
+                ref: function(path) {
+                    const self = this;
+                    return {
+                        set: async (data) => {
+                            self.setData(path, data);
+                            return Promise.resolve();
+                        },
+                        update: async (data) => {
+                            const current = self.getData(path) || {};
+                            self.setData(path, { ...current, ...data });
+                            return Promise.resolve();
+                        },
+                        once: async (eventType) => {
+                            const data = self.getData(path);
+                            return Promise.resolve({
+                                val: () => data,
+                                exists: () => data !== null && data !== undefined
+                            });
+                        },
+                        on: (eventType, callback) => {
+                            const interval = setInterval(() => {
+                                const data = self.getData(path);
+                                callback({ val: () => data });
+                            }, 1000);
+                            return interval;
+                        }
+                    };
+                }
+            };
+
+            window.database = mockDatabase;
+            initializeApp();
+        }
+
+        // Initialize app after database is ready
+        function initializeApp() {
+            updateGameStatus('Welcome! Enter your name to join or create a game.');
+            initializeCardDecks();
+        }
+
+        // Make database globally accessible
+        let database;
 
         // Game state
         let currentGame = null;
@@ -1891,8 +2000,8 @@ Poor life choices`;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            updateGameStatus('Welcome! Enter your name to join or create a game.');
-            initializeCardDecks(); // Set up persistent card storage
+            // Initialization will be handled by the window load event
+            // to ensure Firebase is loaded first
         });
     </script>
 </body>
