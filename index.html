@@ -1213,7 +1213,7 @@ Poor life choices`;
 
             try {
                 const cardDecks = await getCardDecks();
-                const existingCards = globalCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
+                const existingCards = globalCardType === 'black' ? (cardDecks.blackCards || []) : (cardDecks.whiteCards || []);
                 
                 // Check for duplicates
                 const duplicates = newCards.filter(card => existingCards.includes(card));
@@ -1228,8 +1228,8 @@ Poor life choices`;
 
                 // Update global decks
                 await updateGlobalCardDecks(
-                    globalCardType === 'black' ? combinedCards : cardDecks.blackCards,
-                    globalCardType === 'white' ? combinedCards : cardDecks.whiteCards
+                    globalCardType === 'black' ? combinedCards : (cardDecks.blackCards || []),
+                    globalCardType === 'white' ? combinedCards : (cardDecks.whiteCards || [])
                 );
                 
                 let message = `Successfully added ${uniqueNewCards.length} ${globalCardType} cards to global deck!`;
