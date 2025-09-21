@@ -798,24 +798,29 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyA7hz07OZNNNLPKlQFw1j5vEiewwPOOUOQ",
-            authDomain: "saturday-night-cards.firebaseapp.com",
-            databaseURL: "https://saturday-night-cards-default-rtdb.firebaseio.com",
-            projectId: "saturday-night-cards",
-            storageBucket: "saturday-night-cards.firebasestorage.app",
-            messagingSenderId: "216085215949",
-            appId: "1:216085215949:web:1a08c0096000713518c784"
+        // Mock Firebase for local development (replace with real Firebase when deploying)
+        window.firebase = {
+            initializeApp: () => ({}),
+            database: () => ({
+                ref: (path) => ({
+                    set: (data) => Promise.resolve(),
+                    update: (data) => Promise.resolve(),
+                    once: (eventType) => Promise.resolve({
+                        val: () => null,
+                        exists: () => false
+                    }),
+                    on: (eventType, callback) => {
+                        // Mock listener - call immediately with empty data
+                        setTimeout(() => callback({ val: () => null }), 100);
+                    }
+                }),
+                ServerValue: {
+                    increment: (value) => value
+                }
+            })
         };
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
         // Game state
