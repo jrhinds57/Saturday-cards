@@ -436,6 +436,64 @@
             z-index: 999;
         }
 
+        .removable-card {
+            margin: 5px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .removable-card:hover {
+            background: rgba(255, 99, 107, 0.3);
+            border-left-color: #dc3545;
+        }
+
+        .submitted-answer {
+            background: rgba(40, 167, 69, 0.2);
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .submitted-answer-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 5px;
+        }
+
+        .all-submissions {
+            margin-top: 30px;
+        }
+
+        .all-submissions h4 {
+            color: #4ecdc4;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .all-submissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .submission-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 14px;
+        }
+
+        .submission-item.custom {
+            border-left: 3px solid #ff6b6b;
+        }
+
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -547,17 +605,17 @@
             <h2 id="cardManagementTitle" style="text-align: center; margin-bottom: 20px;">Manage Cards</h2>
             
             <div style="margin-bottom: 20px;">
-                <textarea id="bulkCardInput" placeholder="Paste cards here, one per line..." style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical;"></textarea>
+                <h4>Add New Cards:</h4>
+                <textarea id="bulkCardInput" placeholder="Paste cards here, one per line..." style="width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical;"></textarea>
             </div>
             
             <div class="actions">
-                <button class="btn" onclick="saveBulkCards()">Replace All Cards</button>
-                <button class="btn btn-secondary" onclick="addBulkCards()">Add to Existing Cards</button>
-                <button class="btn btn-secondary" onclick="closeCardManagement()">Cancel</button>
+                <button class="btn btn-secondary" onclick="addBulkCards()">Add Cards</button>
+                <button class="btn btn-secondary" onclick="closeCardManagement()">Close</button>
             </div>
             
-            <h3 style="margin: 20px 0;">Current Cards:</h3>
-            <div id="currentCardsList" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 5px;">
+            <h4 style="margin: 20px 0;">Current Cards (click to remove):</h4>
+            <div id="currentCardsList" style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 5px;">
                 <!-- Current cards will be listed here -->
             </div>
         </div>
@@ -654,6 +712,30 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
+
+        // Initialize persistent card decks
+        async function initializeCardDecks() {
+            const decksRef = database.ref('cardDecks');
+            const snapshot = await decksRef.once('value');
+            
+            if (!snapshot.exists()) {
+                // First time setup - save default decks
+                await decksRef.set({
+                    blackCards: defaultBlackCards,
+                    whiteCards: defaultWhiteCards,
+                    lastUpdated: Date.now()
+                });
+            }
+        }
+
+        // Get current card decks from Firebase
+        async function getCardDecks() {
+            const snapshot = await database.ref('cardDecks').once('value');
+            return snapshot.val() || {
+                blackCards: defaultBlackCards,
+                whiteCards: defaultWhiteCards
+            };
+        }
 
         // Game state
         let currentGame = null;
@@ -854,6 +936,9 @@
             const gameCode = generateGameCode();
             currentPlayer.isHost = true;
 
+            // Get current card decks from persistent storage
+            const cardDecks = await getCardDecks();
+
             const gameData = {
                 code: gameCode,
                 hostId: currentPlayer.id,
@@ -866,8 +951,8 @@
                         hand: []
                     }
                 },
-                blackCards: defaultBlackCards,
-                whiteCards: defaultWhiteCards,
+                blackCards: cardDecks.blackCards,
+                whiteCards: cardDecks.whiteCards,
                 round: 0,
                 maxRounds: 10,
                 whiteCardCount: 7,
@@ -1067,11 +1152,69 @@
             if (currentPlayer.id === gameData.czarId) {
                 showSection('submissionsSection');
                 updateWaitingIndicator(gameData);
+                updateSubmissionsDisplay(gameData);
                 updateGameStatus('Waiting for players to submit their answers...');
             } else {
-                showSection('roundSection');
-                displayPlayerHand(gameData.players[currentPlayer.id].hand);
-                updateGameStatus('Choose a white card or type a custom answer, then submit!');
+                // Check if player has already submitted
+                const hasSubmitted = gameData.submittedPlayers && gameData.submittedPlayers[currentPlayer.id];
+                
+                if (hasSubmitted) {
+                    // Show what they submitted
+                    showSection('submissionsSection');
+                    displayPlayerSubmission(gameData);
+                    updateWaitingIndicator(gameData);
+                    updateGameStatus('Answer submitted! Waiting for other players...');
+                } else {
+                    // Show submission interface
+                    showSection('roundSection');
+                    displayPlayerHand(gameData.players[currentPlayer.id].hand);
+                    updateGameStatus('Choose a white card or type a custom answer, then submit!');
+                }
+            }
+        }
+
+        function displayPlayerSubmission(gameData) {
+            const submissionsGrid = document.getElementById('submissionsGrid');
+            submissionsGrid.innerHTML = '';
+
+            // Find what this player submitted
+            const playerSubmission = Object.values(gameData.submissions || {}).find(
+                sub => sub.playerId === currentPlayer.id
+            );
+
+            if (playerSubmission) {
+                const submittedDiv = document.createElement('div');
+                submittedDiv.className = 'submitted-answer';
+                submittedDiv.innerHTML = `
+                    <div class="submitted-answer-text">Your Submission:</div>
+                    <div>"${playerSubmission.answer}"</div>
+                    ${playerSubmission.isCustom ? '<small>(Custom Answer)</small>' : ''}
+                `;
+                submissionsGrid.appendChild(submittedDiv);
+            }
+
+            // Show all submissions if everyone has submitted
+            const playerIds = Object.keys(gameData.players).filter(id => id !== gameData.czarId);
+            const submittedIds = Object.keys(gameData.submittedPlayers || {});
+            
+            if (playerIds.length === submittedIds.length && gameData.submissions) {
+                const allSubmissionsDiv = document.createElement('div');
+                allSubmissionsDiv.className = 'all-submissions';
+                allSubmissionsDiv.innerHTML = '<h4>All Submitted Answers:</h4>';
+                
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'all-submissions-grid';
+                
+                Object.values(gameData.submissions).forEach(submission => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'submission-item';
+                    if (submission.isCustom) itemDiv.classList.add('custom');
+                    itemDiv.textContent = `"${submission.answer}"`;
+                    gridDiv.appendChild(itemDiv);
+                });
+                
+                allSubmissionsDiv.appendChild(gridDiv);
+                submissionsGrid.appendChild(allSubmissionsDiv);
             }
         }
 
@@ -1168,6 +1311,8 @@
                 updateGameStatus('Choose the winning answer!');
                 document.getElementById('judgeActions').style.display = 'flex';
             } else {
+                // Show what the player submitted during judging
+                displayPlayerSubmission(gameData);
                 updateGameStatus('Card Czar is choosing the winner...');
                 document.getElementById('judgeActions').style.display = 'none';
             }
@@ -1336,35 +1481,36 @@
         }
 
         async function updateCurrentCardsList() {
-            const gameData = await getCurrentGameData();
-            const cards = currentCardType === 'black' ? gameData.blackCards : gameData.whiteCards;
+            const cardDecks = await getCardDecks();
+            const cards = currentCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
             const listContainer = document.getElementById('currentCardsList');
             
             listContainer.innerHTML = cards.map((card, index) => 
-                `<div style="margin: 5px 0; padding: 5px; background: rgba(255,255,255,0.1); border-radius: 3px;">
+                `<div class="removable-card" onclick="removeSpecificCard(${index})" title="Click to remove">
                     ${index + 1}. ${card}
                 </div>`
             ).join('');
         }
 
-        async function saveBulkCards() {
-            const textarea = document.getElementById('bulkCardInput');
-            const cards = textarea.value.split('\n').map(card => card.trim()).filter(card => card);
+        async function removeSpecificCard(index) {
+            if (!confirm('Remove this card from the deck?')) return;
+
+            const cardDecks = await getCardDecks();
+            const cardArray = currentCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
             
-            if (cards.length === 0) {
-                alert('Please enter some cards, one per line');
-                return;
-            }
-
-            if (!confirm(`Replace all ${currentCardType} cards with ${cards.length} new cards?`)) {
-                return;
-            }
-
+            cardArray.splice(index, 1);
+            
             const updatePath = currentCardType === 'black' ? 'blackCards' : 'whiteCards';
-            await database.ref(`games/${currentGame}/${updatePath}`).set(cards);
+            await database.ref(`cardDecks/${updatePath}`).set(cardArray);
+            await database.ref('cardDecks/lastUpdated').set(Date.now());
             
-            alert(`Successfully replaced ${currentCardType} cards!`);
-            closeCardManagement();
+            // Update current game if it exists
+            if (currentGame) {
+                await database.ref(`games/${currentGame}/${updatePath}`).set(cardArray);
+            }
+            
+            updateCurrentCardsList();
+            alert(`Card removed from ${currentCardType} deck!`);
         }
 
         async function addBulkCards() {
@@ -1376,15 +1522,24 @@
                 return;
             }
 
-            const gameData = await getCurrentGameData();
-            const existingCards = currentCardType === 'black' ? gameData.blackCards : gameData.whiteCards;
+            const cardDecks = await getCardDecks();
+            const existingCards = currentCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
             const combinedCards = [...existingCards, ...newCards];
 
             const updatePath = currentCardType === 'black' ? 'blackCards' : 'whiteCards';
-            await database.ref(`games/${currentGame}/${updatePath}`).set(combinedCards);
+            
+            // Update persistent storage
+            await database.ref(`cardDecks/${updatePath}`).set(combinedCards);
+            await database.ref('cardDecks/lastUpdated').set(Date.now());
+            
+            // Update current game if it exists
+            if (currentGame) {
+                await database.ref(`games/${currentGame}/${updatePath}`).set(combinedCards);
+            }
             
             alert(`Successfully added ${newCards.length} ${currentCardType} cards!`);
-            closeCardManagement();
+            textarea.value = '';
+            updateCurrentCardsList();
         }
 
         // Event Listeners
@@ -1415,7 +1570,10 @@
         });
 
         // Initialize
-        updateGameStatus('Welcome! Enter your name to join or create a game.');
+        document.addEventListener('DOMContentLoaded', function() {
+            updateGameStatus('Welcome! Enter your name to join or create a game.');
+            initializeCardDecks(); // Set up persistent card storage
+        });
     </script>
 </body>
 </html>
