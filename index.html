@@ -636,7 +636,7 @@
             <h2 style="text-align: center; margin-bottom: 20px;">Join or Create Game</h2>
             <div class="join-form">
                 <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
-                <input type="text" id="gameCode" placeholder="Game code (leave empty to create)" maxlength="6">
+                <input type="text" id="gameCode" placeholder="Game code (leave empty to create)" maxlength="4">
                 <button class="btn" onclick="joinOrCreateGame()">Join/Create Game</button>
             </div>
             
@@ -798,29 +798,24 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <script>
-        // Mock Firebase for local development (replace with real Firebase when deploying)
-        window.firebase = {
-            initializeApp: () => ({}),
-            database: () => ({
-                ref: (path) => ({
-                    set: (data) => Promise.resolve(),
-                    update: (data) => Promise.resolve(),
-                    once: (eventType) => Promise.resolve({
-                        val: () => null,
-                        exists: () => false
-                    }),
-                    on: (eventType, callback) => {
-                        // Mock listener - call immediately with empty data
-                        setTimeout(() => callback({ val: () => null }), 100);
-                    }
-                }),
-                ServerValue: {
-                    increment: (value) => value
-                }
-            })
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA7hz07OZNNNLPKlQFw1j5vEiewwPOOUOQ",
+            authDomain: "saturday-night-cards.firebaseapp.com",
+            databaseURL: "https://saturday-night-cards-default-rtdb.firebaseio.com",
+            projectId: "saturday-night-cards",
+            storageBucket: "saturday-night-cards.firebasestorage.app",
+            messagingSenderId: "216085215949",
+            appId: "1:216085215949:web:1a08c0096000713518c784"
         };
 
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
         // Game state
@@ -952,7 +947,7 @@
         }
 
         function generateGameCode() {
-            return Math.random().toString(36).substr(2, 6).toUpperCase();
+            return Math.floor(1000 + Math.random() * 9000).toString();
         }
 
         function shuffleArray(array) {
@@ -1297,10 +1292,16 @@ Poor life choices`;
             const nameInput = document.getElementById('playerName');
             const codeInput = document.getElementById('gameCode');
             const name = nameInput.value.trim();
-            const code = codeInput.value.trim().toUpperCase();
+            const code = codeInput.value.trim();
 
             if (!name) {
                 alert('Please enter your name');
+                return;
+            }
+
+            // Validate 4-digit code if provided
+            if (code && (!/^\d{4}$/.test(code))) {
+                alert('Game code must be exactly 4 digits');
                 return;
             }
 
