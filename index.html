@@ -191,11 +191,12 @@
         }
 
         .game-code {
-            font-size: 2rem;
+            font-size: 3rem;
             font-weight: bold;
             color: #4ecdc4;
             margin: 10px 0;
-            letter-spacing: 3px;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
         }
 
         .players-list {
@@ -914,11 +915,15 @@
 
         // Update global card decks
         async function updateGlobalCardDecks(blackCards, whiteCards) {
+            // Get current version number first
+            const currentData = await getCardDecks();
+            const currentVersion = currentData.version || 0;
+            
             const updates = {
                 blackCards: blackCards,
                 whiteCards: whiteCards,
                 lastUpdated: Date.now(),
-                version: firebase.database.ServerValue.increment(1)
+                version: currentVersion + 1
             };
             
             await database.ref('globalCardDecks').update(updates);
