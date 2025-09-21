@@ -166,6 +166,22 @@
             background: linear-gradient(135deg, #44a08d, #4ecdc4);
         }
 
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #c82333, #dc3545);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #e0a800, #ffc107);
+        }
+
         .game-info {
             text-align: center;
             margin-bottom: 20px;
@@ -444,6 +460,7 @@
             cursor: pointer;
             transition: background 0.3s ease;
             border-left: 3px solid transparent;
+            position: relative;
         }
 
         .removable-card:hover {
@@ -492,6 +509,79 @@
 
         .submission-item.custom {
             border-left: 3px solid #ff6b6b;
+        }
+
+        .deck-stats {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .deck-stats h4 {
+            color: #4ecdc4;
+            margin-bottom: 5px;
+        }
+
+        .deck-management-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .textarea-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .textarea-container textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+            resize: vertical;
+            font-family: Arial, sans-serif;
+        }
+
+        .textarea-container textarea::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .card-counter {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .success-message {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid #28a745;
+            color: #28a745;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .error-message {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
         }
 
         @media (max-width: 768px) {
@@ -549,6 +639,10 @@
                 <input type="text" id="gameCode" placeholder="Game code (leave empty to create)" maxlength="6">
                 <button class="btn" onclick="joinOrCreateGame()">Join/Create Game</button>
             </div>
+            
+            <div class="actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="showGlobalCardManagement()">Manage Global Card Decks</button>
+            </div>
         </div>
 
         <!-- Game Info Section -->
@@ -588,34 +682,45 @@
                     </div>
                 </div>
                 
-                <h3 style="text-align: center; margin: 20px 0;">Manage Card Decks</h3>
-                <div class="actions">
-                    <button class="btn btn-secondary" onclick="showCardManagement()">Edit Black Cards</button>
-                    <button class="btn btn-secondary" onclick="showCardManagement('white')">Edit White Cards</button>
-                </div>
-                
                 <div class="actions" style="margin-top: 15px;">
                     <button class="btn" onclick="startGame()">Start Game</button>
                 </div>
             </div>
         </div>
 
-        <!-- Card Management Modal -->
-        <div id="cardManagementModal" class="game-section hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; max-height: 80vh; overflow-y: auto; width: 90%; max-width: 800px;">
-            <h2 id="cardManagementTitle" style="text-align: center; margin-bottom: 20px;">Manage Cards</h2>
+        <!-- Global Card Management Modal -->
+        <div id="globalCardManagementModal" class="game-section hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; max-height: 90vh; overflow-y: auto; width: 95%; max-width: 900px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">🎴 Manage Global Card Decks</h2>
+            <p style="text-align: center; margin-bottom: 20px; color: #4ecdc4;">Changes made here will affect ALL future games</p>
             
-            <div style="margin-bottom: 20px;">
-                <h4>Add New Cards:</h4>
-                <textarea id="bulkCardInput" placeholder="Paste cards here, one per line..." style="width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical;"></textarea>
+            <div class="deck-management-actions">
+                <button class="btn btn-secondary" onclick="switchCardType('black')">Edit Black Cards</button>
+                <button class="btn btn-secondary" onclick="switchCardType('white')">Edit White Cards</button>
+                <button class="btn btn-warning" onclick="resetToDefaults()">Reset to Defaults</button>
+                <button class="btn" onclick="closeGlobalCardManagement()">Done</button>
+            </div>
+
+            <div id="deckStats" class="deck-stats">
+                <!-- Deck statistics will be shown here -->
+            </div>
+
+            <div id="messageContainer">
+                <!-- Success/error messages will appear here -->
             </div>
             
-            <div class="actions">
-                <button class="btn btn-secondary" onclick="addBulkCards()">Add Cards</button>
-                <button class="btn btn-secondary" onclick="closeCardManagement()">Close</button>
+            <div class="textarea-container">
+                <h4 id="globalCardTypeTitle">Add New Black Cards:</h4>
+                <textarea id="globalBulkCardInput" placeholder="Paste cards here, one per line...&#10;&#10;Example:&#10;What's the next Happy Meal toy?&#10;___: kid tested, mother approved.&#10;I drink to forget ___."></textarea>
+                <div class="card-counter" id="cardCounter">0 cards</div>
+            </div>
+            
+            <div class="actions" style="margin-bottom: 20px;">
+                <button class="btn btn-secondary" onclick="addGlobalBulkCards()">Add Cards to Global Deck</button>
+                <button class="btn btn-danger" onclick="clearAllCards()">Clear All Cards of This Type</button>
             </div>
             
             <h4 style="margin: 20px 0;">Current Cards (click to remove):</h4>
-            <div id="currentCardsList" style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 5px;">
+            <div id="globalCurrentCardsList" style="max-height: 400px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 10px;">
                 <!-- Current cards will be listed here -->
             </div>
         </div>
@@ -713,30 +818,6 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // Initialize persistent card decks
-        async function initializeCardDecks() {
-            const decksRef = database.ref('cardDecks');
-            const snapshot = await decksRef.once('value');
-            
-            if (!snapshot.exists()) {
-                // First time setup - save default decks
-                await decksRef.set({
-                    blackCards: defaultBlackCards,
-                    whiteCards: defaultWhiteCards,
-                    lastUpdated: Date.now()
-                });
-            }
-        }
-
-        // Get current card decks from Firebase
-        async function getCardDecks() {
-            const snapshot = await database.ref('cardDecks').once('value');
-            return snapshot.val() || {
-                blackCards: defaultBlackCards,
-                whiteCards: defaultWhiteCards
-            };
-        }
-
         // Game state
         let currentGame = null;
         let currentPlayer = {
@@ -746,7 +827,7 @@
         };
         let selectedCardIndex = null;
         let selectedSubmissionIndex = null;
-        let currentCardType = 'black';
+        let globalCardType = 'black';
 
         // Default card decks
         const defaultBlackCards = [
@@ -759,7 +840,17 @@
             "What's that sound?",
             "What's the most emo?",
             "Instead of coal, Santa now gives the bad children ___.",
-            "What gives me uncontrollable gas?"
+            "What gives me uncontrollable gas?",
+            "The Academy Award for ___ goes to ___.",
+            "What's my secret power?",
+            "___ + ___ = ___.",
+            "In M. Night Shyamalan's new movie, Bruce Willis discovers that ___ had really been ___ all along.",
+            "What's the new fad diet?",
+            "What's there a ton of in heaven?",
+            "Coming to Broadway this season, ___: The Musical.",
+            "Alternative medicine is now embracing the curative powers of ___.",
+            "What's Batman's guilty pleasure?",
+            "TSA guidelines now prohibit ___ on airplanes."
         ];
 
         const defaultWhiteCards = [
@@ -782,8 +873,73 @@
             "Bling",
             "Poor life choices",
             "Powerful thighs",
-            "The South"
+            "The South",
+            "Expecting a burp and vomiting on the floor",
+            "Cheating in the Special Olympics",
+            "My sex life",
+            "Incest",
+            "A can of whoop-ass",
+            "Viagra",
+            "Dead babies",
+            "Switching to Geico",
+            "Daniel Radcliffe's delicious asshole",
+            "Erectile dysfunction"
         ];
+
+        // Initialize persistent card decks
+        async function initializeCardDecks() {
+            const decksRef = database.ref('globalCardDecks');
+            const snapshot = await decksRef.once('value');
+            
+            if (!snapshot.exists()) {
+                // First time setup - save default decks
+                await decksRef.set({
+                    blackCards: defaultBlackCards,
+                    whiteCards: defaultWhiteCards,
+                    lastUpdated: Date.now(),
+                    version: 1
+                });
+                console.log('Initialized default card decks');
+            }
+        }
+
+        // Get current card decks from Firebase
+        async function getCardDecks() {
+            const snapshot = await database.ref('globalCardDecks').once('value');
+            return snapshot.val() || {
+                blackCards: defaultBlackCards,
+                whiteCards: defaultWhiteCards
+            };
+        }
+
+        // Update global card decks
+        async function updateGlobalCardDecks(blackCards, whiteCards) {
+            const updates = {
+                blackCards: blackCards,
+                whiteCards: whiteCards,
+                lastUpdated: Date.now(),
+                version: firebase.database.ServerValue.increment(1)
+            };
+            
+            await database.ref('globalCardDecks').update(updates);
+            
+            // Update all active games with new decks
+            const gamesSnapshot = await database.ref('games').once('value');
+            const games = gamesSnapshot.val();
+            
+            if (games) {
+                const gameUpdates = {};
+                Object.keys(games).forEach(gameCode => {
+                    gameUpdates[`games/${gameCode}/blackCards`] = blackCards;
+                    gameUpdates[`games/${gameCode}/whiteCards`] = whiteCards;
+                });
+                
+                if (Object.keys(gameUpdates).length > 0) {
+                    await database.ref().update(gameUpdates);
+                    console.log(`Updated ${Object.keys(games).length} active games with new card decks`);
+                }
+            }
+        }
 
         // Utility functions
         function generateId() {
@@ -805,6 +961,27 @@
 
         function getRandomCards(deck, count) {
             return shuffleArray(deck).slice(0, count);
+        }
+
+        function showMessage(message, type = 'success') {
+            const container = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+            messageDiv.textContent = message;
+            
+            container.innerHTML = '';
+            container.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        function updateCardCounter() {
+            const textarea = document.getElementById('globalBulkCardInput');
+            const counter = document.getElementById('cardCounter');
+            const lines = textarea.value.split('\n').filter(line => line.trim()).length;
+            counter.textContent = `${lines} card${lines !== 1 ? 's' : ''}`;
         }
 
         // UI Management
@@ -910,6 +1087,206 @@
             });
         }
 
+        // Global Card Management Functions
+        async function showGlobalCardManagement() {
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            overlay.onclick = closeGlobalCardManagement;
+            document.body.appendChild(overlay);
+            
+            document.getElementById('globalCardManagementModal').classList.remove('hidden');
+            await switchCardType('black');
+            updateDeckStats();
+        }
+
+        function closeGlobalCardManagement() {
+            document.getElementById('globalCardManagementModal').classList.add('hidden');
+            const overlay = document.querySelector('.overlay');
+            if (overlay) overlay.remove();
+            document.getElementById('globalBulkCardInput').value = '';
+            document.getElementById('messageContainer').innerHTML = '';
+        }
+
+        async function switchCardType(type) {
+            globalCardType = type;
+            document.getElementById('globalCardTypeTitle').textContent = 
+                `Add New ${type.charAt(0).toUpperCase() + type.slice(1)} Cards:`;
+            
+            const textarea = document.getElementById('globalBulkCardInput');
+            if (type === 'black') {
+                textarea.placeholder = `Paste black cards here, one per line...
+
+Example:
+What's the next Happy Meal toy?
+___: kid tested, mother approved.
+I drink to forget ___.
+___ + ___ = ___.`;
+            } else {
+                textarea.placeholder = `Paste white cards here, one per line...
+
+Example:
+A mime having a stroke
+Vigorous jazz hands
+My collection of high-tech sex toys
+Poor life choices`;
+            }
+            
+            await updateGlobalCurrentCardsList();
+            updateDeckStats();
+        }
+
+        async function updateDeckStats() {
+            const cardDecks = await getCardDecks();
+            const blackCount = cardDecks.blackCards ? cardDecks.blackCards.length : 0;
+            const whiteCount = cardDecks.whiteCards ? cardDecks.whiteCards.length : 0;
+            
+            document.getElementById('deckStats').innerHTML = `
+                <h4>Current Deck Status</h4>
+                <p>Black Cards: ${blackCount} | White Cards: ${whiteCount}</p>
+                <p>Total Cards: ${blackCount + whiteCount}</p>
+                <small>Last updated: ${cardDecks.lastUpdated ? new Date(cardDecks.lastUpdated).toLocaleDateString() : 'Never'}</small>
+            `;
+        }
+
+        async function updateGlobalCurrentCardsList() {
+            const cardDecks = await getCardDecks();
+            const cards = globalCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
+            const listContainer = document.getElementById('globalCurrentCardsList');
+            
+            if (!cards || cards.length === 0) {
+                listContainer.innerHTML = `<p style="text-align: center; color: #999; padding: 20px;">No ${globalCardType} cards found. Add some cards above!</p>`;
+                return;
+            }
+            
+            listContainer.innerHTML = cards.map((card, index) => 
+                `<div class="removable-card" onclick="removeGlobalCard(${index})" title="Click to remove this card permanently">
+                    <strong>${index + 1}.</strong> ${card}
+                </div>`
+            ).join('');
+        }
+
+        async function removeGlobalCard(index) {
+            if (!confirm(`Remove this ${globalCardType} card permanently from all games?`)) return;
+
+            try {
+                const cardDecks = await getCardDecks();
+                const cardArray = globalCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
+                
+                if (!cardArray || index >= cardArray.length) {
+                    showMessage('Card not found', 'error');
+                    return;
+                }
+                
+                const removedCard = cardArray[index];
+                cardArray.splice(index, 1);
+                
+                // Update global decks
+                await updateGlobalCardDecks(
+                    globalCardType === 'black' ? cardArray : cardDecks.blackCards,
+                    globalCardType === 'white' ? cardArray : cardDecks.whiteCards
+                );
+                
+                showMessage(`"${removedCard}" removed from ${globalCardType} deck!`);
+                await updateGlobalCurrentCardsList();
+                updateDeckStats();
+            } catch (error) {
+                console.error('Error removing card:', error);
+                showMessage('Error removing card: ' + error.message, 'error');
+            }
+        }
+
+        async function addGlobalBulkCards() {
+            const textarea = document.getElementById('globalBulkCardInput');
+            const newCards = textarea.value.split('\n')
+                .map(card => card.trim())
+                .filter(card => card && card.length > 0);
+            
+            if (newCards.length === 0) {
+                showMessage('Please enter some cards, one per line', 'error');
+                return;
+            }
+
+            try {
+                const cardDecks = await getCardDecks();
+                const existingCards = globalCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
+                
+                // Check for duplicates
+                const duplicates = newCards.filter(card => existingCards.includes(card));
+                const uniqueNewCards = newCards.filter(card => !existingCards.includes(card));
+                
+                if (uniqueNewCards.length === 0) {
+                    showMessage('All cards already exist in the deck', 'error');
+                    return;
+                }
+
+                const combinedCards = [...existingCards, ...uniqueNewCards];
+
+                // Update global decks
+                await updateGlobalCardDecks(
+                    globalCardType === 'black' ? combinedCards : cardDecks.blackCards,
+                    globalCardType === 'white' ? combinedCards : cardDecks.whiteCards
+                );
+                
+                let message = `Successfully added ${uniqueNewCards.length} ${globalCardType} cards to global deck!`;
+                if (duplicates.length > 0) {
+                    message += ` (${duplicates.length} duplicates skipped)`;
+                }
+                
+                showMessage(message);
+                textarea.value = '';
+                updateCardCounter();
+                await updateGlobalCurrentCardsList();
+                updateDeckStats();
+            } catch (error) {
+                console.error('Error adding cards:', error);
+                showMessage('Error adding cards: ' + error.message, 'error');
+            }
+        }
+
+        async function clearAllCards() {
+            const cardType = globalCardType;
+            if (!confirm(`Are you sure you want to clear ALL ${cardType} cards? This will affect all games and cannot be undone!`)) {
+                return;
+            }
+
+            if (!confirm(`This will permanently delete all ${cardType} cards from the global deck. Are you absolutely sure?`)) {
+                return;
+            }
+
+            try {
+                const cardDecks = await getCardDecks();
+                
+                // Update global decks with empty array for the selected type
+                await updateGlobalCardDecks(
+                    cardType === 'black' ? [] : cardDecks.blackCards,
+                    cardType === 'white' ? [] : cardDecks.whiteCards
+                );
+                
+                showMessage(`All ${cardType} cards have been cleared from the global deck`);
+                await updateGlobalCurrentCardsList();
+                updateDeckStats();
+            } catch (error) {
+                console.error('Error clearing cards:', error);
+                showMessage('Error clearing cards: ' + error.message, 'error');
+            }
+        }
+
+        async function resetToDefaults() {
+            if (!confirm('Reset card decks to default? This will replace all current cards with the original set.')) {
+                return;
+            }
+
+            try {
+                await updateGlobalCardDecks(defaultBlackCards, defaultWhiteCards);
+                showMessage('Card decks reset to defaults!');
+                await updateGlobalCurrentCardsList();
+                updateDeckStats();
+            } catch (error) {
+                console.error('Error resetting cards:', error);
+                showMessage('Error resetting cards: ' + error.message, 'error');
+            }
+        }
+
         // Game Logic
         async function joinOrCreateGame() {
             const nameInput = document.getElementById('playerName');
@@ -980,8 +1357,22 @@
                 }
 
                 if (gameData.phase !== 'waiting') {
-                    alert('This game has already started.');
-                    return;
+                    // Check if this player was already in the game (reconnection)
+                    const existingPlayer = Object.values(gameData.players || {}).find(
+                        player => player.name === currentPlayer.name
+                    );
+                    
+                    if (existingPlayer) {
+                        // Reconnect with same ID and score
+                        currentPlayer.id = existingPlayer.id;
+                        currentGame = gameCode;
+                        setupGameListener(gameCode);
+                        showGameLobby(gameCode);
+                        return;
+                    } else {
+                        alert('This game has already started and you were not a participant.');
+                        return;
+                    }
                 }
 
                 await database.ref(`games/${gameCode}/players/${currentPlayer.id}`).set({
@@ -1458,90 +1849,6 @@
             return snapshot.val();
         }
 
-        // Card Management Functions
-        function showCardManagement(type = 'black') {
-            currentCardType = type;
-            document.getElementById('cardManagementTitle').textContent = 
-                `Manage ${type.charAt(0).toUpperCase() + type.slice(1)} Cards`;
-            
-            const overlay = document.createElement('div');
-            overlay.className = 'overlay';
-            overlay.onclick = closeCardManagement;
-            document.body.appendChild(overlay);
-            
-            document.getElementById('cardManagementModal').classList.remove('hidden');
-            updateCurrentCardsList();
-        }
-
-        function closeCardManagement() {
-            document.getElementById('cardManagementModal').classList.add('hidden');
-            const overlay = document.querySelector('.overlay');
-            if (overlay) overlay.remove();
-            document.getElementById('bulkCardInput').value = '';
-        }
-
-        async function updateCurrentCardsList() {
-            const cardDecks = await getCardDecks();
-            const cards = currentCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
-            const listContainer = document.getElementById('currentCardsList');
-            
-            listContainer.innerHTML = cards.map((card, index) => 
-                `<div class="removable-card" onclick="removeSpecificCard(${index})" title="Click to remove">
-                    ${index + 1}. ${card}
-                </div>`
-            ).join('');
-        }
-
-        async function removeSpecificCard(index) {
-            if (!confirm('Remove this card from the deck?')) return;
-
-            const cardDecks = await getCardDecks();
-            const cardArray = currentCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
-            
-            cardArray.splice(index, 1);
-            
-            const updatePath = currentCardType === 'black' ? 'blackCards' : 'whiteCards';
-            await database.ref(`cardDecks/${updatePath}`).set(cardArray);
-            await database.ref('cardDecks/lastUpdated').set(Date.now());
-            
-            // Update current game if it exists
-            if (currentGame) {
-                await database.ref(`games/${currentGame}/${updatePath}`).set(cardArray);
-            }
-            
-            updateCurrentCardsList();
-            alert(`Card removed from ${currentCardType} deck!`);
-        }
-
-        async function addBulkCards() {
-            const textarea = document.getElementById('bulkCardInput');
-            const newCards = textarea.value.split('\n').map(card => card.trim()).filter(card => card);
-            
-            if (newCards.length === 0) {
-                alert('Please enter some cards, one per line');
-                return;
-            }
-
-            const cardDecks = await getCardDecks();
-            const existingCards = currentCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
-            const combinedCards = [...existingCards, ...newCards];
-
-            const updatePath = currentCardType === 'black' ? 'blackCards' : 'whiteCards';
-            
-            // Update persistent storage
-            await database.ref(`cardDecks/${updatePath}`).set(combinedCards);
-            await database.ref('cardDecks/lastUpdated').set(Date.now());
-            
-            // Update current game if it exists
-            if (currentGame) {
-                await database.ref(`games/${currentGame}/${updatePath}`).set(combinedCards);
-            }
-            
-            alert(`Successfully added ${newCards.length} ${currentCardType} cards!`);
-            textarea.value = '';
-            updateCurrentCardsList();
-        }
-
         // Event Listeners
         document.getElementById('playerName').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -1568,6 +1875,8 @@
                 submitAnswer();
             }
         });
+
+        document.getElementById('globalBulkCardInput').addEventListener('input', updateCardCounter);
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
