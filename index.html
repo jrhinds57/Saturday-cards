@@ -1325,6 +1325,11 @@ Poor life choices`;
 
         async function addGlobalBulkCards() {
             const textarea = document.getElementById('globalBulkCardInput');
+            if (!textarea || !textarea.value) {
+                showMessage('Please enter some cards, one per line', 'error');
+                return;
+            }
+            
             const newCards = textarea.value.split('\n')
                 .map(card => card.trim())
                 .filter(card => card && card.length > 0);
