@@ -457,7 +457,17 @@
                 <!-- Card Customization Section -->
                 <div id="cardCustomization" class="game-section hidden">
                     <div class="card-customization">
-                        <h3>Customize Cards (Optional)</h3>
+                        <h3>Customize Game Settings</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; color: #4ecdc4;">Number of Rounds:</label>
+                                <input type="number" id="maxRoundsInput" min="1" max="50" value="10" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; color: #4ecdc4;">Cards per Player:</label>
+                                <input type="number" id="cardsPerPlayerInput" min="5" max="15" value="7" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white;">
+                            </div>
+                        </div>
                         <div class="card-sections">
                             <div class="card-section">
                                 <h4>Black Cards (Questions)</h4>
@@ -487,6 +497,19 @@
                         <div class="actions" style="margin-top: 15px;">
                             <button class="btn btn-secondary" onclick="refreshGameData()">Refresh Player List</button>
                             <button class="btn" onclick="startGame()">Start Game</button>
+                            <button class="btn btn-secondary btn-small" onclick="showKickMenu()">Kick Player</button>
+                        </div>
+                    </div>
+
+                    <!-- Kick Player Menu -->
+                    <div id="kickPlayerMenu" class="hidden" style="margin-top: 15px; padding: 15px; background: rgba(220, 53, 69, 0.1); border: 1px solid #dc3545; border-radius: 8px;">
+                        <h4 style="color: #dc3545; margin-bottom: 10px;">Remove Player</h4>
+                        <select id="playerToKick" style="width: 100%; padding: 8px; margin-bottom: 10px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 5px;">
+                            <option value="">Select player to remove...</option>
+                        </select>
+                        <div class="actions">
+                            <button class="btn btn-small" onclick="kickPlayer()" style="background: #dc3545;">Remove Player</button>
+                            <button class="btn btn-secondary btn-small" onclick="hideKickMenu()">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -502,12 +525,49 @@
                         <!-- Current black card will appear here -->
                     </div>
 
+                    <!-- Czar Controls -->
+                    <div id="czarControls" class="actions hidden" style="margin-bottom: 20px;">
+                        <button class="btn btn-secondary" onclick="previousBlackCard()">← Previous Card</button>
+                        <button class="btn btn-secondary" onclick="nextBlackCard()">Next Card →</button>
+                        <button class="btn" onclick="confirmBlackCard()">Use This Card</button>
+                    </div>
+
+                    <!-- Player Submission Status -->
+                    <div id="submissionStatus" class="hidden" style="margin-bottom: 20px;">
+                        <h4 style="color: #4ecdc4; text-align: center; margin-bottom: 15px;">Player Submissions</h4>
+                        <div id="submissionList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                            <!-- Submission status will appear here -->
+                        </div>
+                    </div>
+
+                    <!-- Submitted Cards for Czar to Judge -->
+                    <div id="submittedCardsSection" class="hidden" style="margin-bottom: 20px;">
+                        <h4 style="color: #ffd700; text-align: center; margin-bottom: 15px;">Choose the Best Answer</h4>
+                        <div id="submittedCardsList" class="white-cards">
+                            <!-- Submitted cards will appear here -->
+                        </div>
+                        <div class="actions" style="margin-top: 15px;">
+                            <button id="selectWinnerBtn" class="btn" onclick="selectWinner()" disabled>Select Winner</button>
+                        </div>
+                    </div>
+
                     <div id="playerHand" class="white-cards">
                         <!-- Player's white cards will appear here -->
                     </div>
 
+                    <!-- Custom Answer Input -->
+                    <div id="customAnswerSection" class="hidden" style="margin: 20px 0;">
+                        <textarea id="customAnswerInput" placeholder="Write your own answer..." style="width: 100%; height: 80px; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; resize: vertical;"></textarea>
+                        <div style="margin-top: 10px;">
+                            <button class="btn btn-small" onclick="submitCustomAnswer()">Submit Custom Answer</button>
+                            <button class="btn btn-secondary btn-small" onclick="cancelCustomAnswer()">Cancel</button>
+                        </div>
+                    </div>
+
                     <div id="gameActions" class="actions">
                         <button id="submitCard" class="btn" onclick="submitCard()" disabled>Submit Selected Card</button>
+                        <button class="btn btn-secondary" onclick="writeCustomAnswer()">Write Custom Answer</button>
+                        <button class="btn btn-secondary" onclick="discardHand()">Discard Hand</button>
                         <button class="btn btn-secondary" onclick="leaveGame()">Leave Game</button>
                     </div>
                 </div>
@@ -543,8 +603,10 @@
             name: '',
             isHost: false,
             hand: [],
-            selectedCard: null
+            selectedCard: null,
+            selectedSubmission: null
         };
+        let blackCardIndex = 0;
 
         // Default card decks
         const defaultBlackCards = [
@@ -739,6 +801,8 @@
 
             const blackCardsText = document.getElementById('blackCardsInput').value.trim();
             const whiteCardsText = document.getElementById('whiteCardsInput').value.trim();
+            const maxRounds = parseInt(document.getElementById('maxRoundsInput').value);
+            const cardsPerPlayer = parseInt(document.getElementById('cardsPerPlayerInput').value);
 
             let blackCards = defaultBlackCards;
             let whiteCards = defaultWhiteCards;
@@ -766,13 +830,15 @@
                     .from('games')
                     .update({
                         black_cards: blackCards,
-                        white_cards: whiteCards
+                        white_cards: whiteCards,
+                        max_rounds: maxRounds,
+                        cards_per_player: cardsPerPlayer
                     })
                     .eq('code', currentGame);
 
                 if (error) throw error;
 
-                showMessage('Cards updated successfully!');
+                showMessage('Game settings updated successfully!');
             } catch (error) {
                 console.error('Error updating cards:', error);
                 showMessage('Error updating cards: ' + error.message, 'error');
@@ -965,6 +1031,11 @@
             if (!gameData) return;
             
             updatePlayersDisplay(gameData);
+            
+            // Update kick player list if host controls are visible
+            if (currentPlayer.isHost && !document.getElementById('kickPlayerMenu').classList.contains('hidden')) {
+                updateKickPlayerList(gameData);
+            }
 
             switch (gameData.phase) {
                 case 'waiting':
@@ -1027,13 +1098,35 @@
         function updatePlayerHand(gameData) {
             const playerHandDiv = document.getElementById('playerHand');
             const submitButton = document.getElementById('submitCard');
+            const czarControls = document.getElementById('czarControls');
+            const gameActions = document.getElementById('gameActions');
+            const submissionStatus = document.getElementById('submissionStatus');
+            const submittedCardsSection = document.getElementById('submittedCardsSection');
+            
+            // Update submission status for all players
+            updateSubmissionStatus(gameData);
             
             if (gameData.current_czar === currentPlayer.id) {
-                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #ffd700;">You are the Card Czar! Wait for players to submit their cards.</div>';
+                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #ffd700;">You are the Card Czar!</div>';
                 submitButton.style.display = 'none';
+                gameActions.classList.add('hidden');
+                
+                // Show black card selection if not confirmed yet
+                if (!gameData.black_card_confirmed) {
+                    czarControls.classList.remove('hidden');
+                    blackCardIndex = gameData.black_card_index || 0;
+                    updateBlackCardDisplay(gameData);
+                } else {
+                    czarControls.classList.add('hidden');
+                    // Show submitted cards for judging
+                    showSubmittedCardsForJudging(gameData);
+                }
                 return;
             }
 
+            czarControls.classList.add('hidden');
+            submittedCardsSection.classList.add('hidden');
+            gameActions.classList.remove('hidden');
             submitButton.style.display = 'inline-block';
 
             const player = gameData.players[currentPlayer.id];
@@ -1058,7 +1151,404 @@
                 playerHandDiv.appendChild(cardDiv);
             });
 
-            submitButton.disabled = currentPlayer.selectedCard === null;
+            // Check if player already submitted
+            const hasSubmitted = gameData.submitted_cards && gameData.submitted_cards[currentPlayer.id];
+            if (hasSubmitted) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Card Submitted';
+                document.querySelectorAll('.white-card').forEach(card => {
+                    card.style.opacity = '0.5';
+                    card.onclick = null;
+                });
+            } else {
+                submitButton.disabled = currentPlayer.selectedCard === null;
+                submitButton.textContent = 'Submit Selected Card';
+            }
+        }
+
+        function updateSubmissionStatus(gameData) {
+            const submissionStatus = document.getElementById('submissionStatus');
+            const submissionList = document.getElementById('submissionList');
+            
+            if (!gameData.players || gameData.phase !== 'playing') {
+                submissionStatus.classList.add('hidden');
+                return;
+            }
+
+            submissionStatus.classList.remove('hidden');
+            submissionList.innerHTML = '';
+
+            Object.values(gameData.players).forEach(player => {
+                if (player.id === gameData.current_czar) return; // Skip czar
+                
+                const statusDiv = document.createElement('div');
+                statusDiv.style.cssText = 'padding: 10px; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2);';
+                
+                const hasSubmitted = gameData.submitted_cards && gameData.submitted_cards[player.id];
+                
+                if (hasSubmitted) {
+                    statusDiv.style.background = 'rgba(40, 167, 69, 0.2)';
+                    statusDiv.style.borderColor = '#28a745';
+                    statusDiv.innerHTML = `<div style="color: #28a745; font-weight: bold;">${player.name}</div><div style="color: #28a745; font-size: 12px;">✓ Submitted</div>`;
+                } else {
+                    statusDiv.style.background = 'rgba(255, 193, 7, 0.2)';
+                    statusDiv.style.borderColor = '#ffc107';
+                    statusDiv.innerHTML = `<div style="color: #ffc107; font-weight: bold;">${player.name}</div><div style="color: #ffc107; font-size: 12px;">⏳ Waiting</div>`;
+                }
+                
+                submissionList.appendChild(statusDiv);
+            });
+        }
+
+        function showSubmittedCardsForJudging(gameData) {
+            const submittedCardsSection = document.getElementById('submittedCardsSection');
+            const submittedCardsList = document.getElementById('submittedCardsList');
+            
+            if (!gameData.submitted_cards || Object.keys(gameData.submitted_cards).length === 0) {
+                submittedCardsSection.classList.add('hidden');
+                return;
+            }
+
+            submittedCardsSection.classList.remove('hidden');
+            submittedCardsList.innerHTML = '';
+
+            // Shuffle the submissions to anonymize them
+            const submissions = Object.entries(gameData.submitted_cards);
+            const shuffledSubmissions = submissions.sort(() => Math.random() - 0.5);
+
+            shuffledSubmissions.forEach(([playerId, cardText], index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'white-card';
+                cardDiv.textContent = cardText;
+                cardDiv.onclick = () => selectSubmission(playerId, cardText, cardDiv);
+                cardDiv.dataset.playerId = playerId;
+                
+                submittedCardsList.appendChild(cardDiv);
+            });
+        }
+
+        function selectSubmission(playerId, cardText, cardElement) {
+            // Remove previous selection
+            document.querySelectorAll('#submittedCardsList .white-card').forEach(c => c.classList.remove('selected'));
+            
+            // Add selection to clicked card
+            cardElement.classList.add('selected');
+            currentPlayer.selectedSubmission = playerId;
+            
+            // Enable select winner button
+            document.getElementById('selectWinnerBtn').disabled = false;
+        }
+
+        async function selectWinner() {
+            if (!currentPlayer.selectedSubmission) return;
+
+            try {
+                const { data: gameData, error: fetchError } = await supabase
+                    .from('games')
+                    .select('*')
+                    .eq('code', currentGame)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                const winnerPlayer = gameData.players[currentPlayer.selectedSubmission];
+                
+                // Update winner's score
+                const updatedPlayers = {
+                    ...gameData.players,
+                    [currentPlayer.selectedSubmission]: {
+                        ...winnerPlayer,
+                        score: (winnerPlayer.score || 0) + 1
+                    }
+                };
+
+                // Move to next round or end game
+                const nextRound = (gameData.round || 1) + 1;
+                const maxRounds = gameData.max_rounds || 10;
+                
+                let updateData = {
+                    players: updatedPlayers,
+                    submitted_cards: {},
+                    black_card_confirmed: false
+                };
+
+                if (nextRound > maxRounds) {
+                    updateData.phase = 'game_end';
+                } else {
+                    // Next player becomes czar
+                    const playerIds = Object.keys(gameData.players);
+                    const currentCzarIndex = playerIds.indexOf(gameData.current_czar);
+                    const nextCzarIndex = (currentCzarIndex + 1) % playerIds.length;
+                    
+                    updateData.round = nextRound;
+                    updateData.current_czar = playerIds[nextCzarIndex];
+                    updateData.black_card_index = 0;
+                    updateData.current_black_card = gameData.black_cards[0];
+                }
+
+                const { error: updateError } = await supabase
+                    .from('games')
+                    .update(updateData)
+                    .eq('code', currentGame);
+
+                if (updateError) throw updateError;
+
+                currentPlayer.selectedSubmission = null;
+                showMessage(`${winnerPlayer.name} wins this round!`);
+
+            } catch (error) {
+                console.error('Error selecting winner:', error);
+                showMessage('Error selecting winner: ' + error.message, 'error');
+            }
+        }
+
+        // Player management functions
+        function showKickMenu() {
+            const kickMenu = document.getElementById('kickPlayerMenu');
+            const playerSelect = document.getElementById('playerToKick');
+            
+            kickMenu.classList.remove('hidden');
+            
+            // Populate player list
+            loadGameData(currentGame).then(() => {
+                // This will be populated after game data loads
+            });
+        }
+
+        function hideKickMenu() {
+            document.getElementById('kickPlayerMenu').classList.add('hidden');
+        }
+
+        function updateKickPlayerList(gameData) {
+            if (!currentPlayer.isHost) return;
+            
+            const playerSelect = document.getElementById('playerToKick');
+            playerSelect.innerHTML = '<option value="">Select player to remove...</option>';
+            
+            Object.values(gameData.players).forEach(player => {
+                if (player.id !== currentPlayer.id) { // Don't allow kicking yourself
+                    const option = document.createElement('option');
+                    option.value = player.id;
+                    option.textContent = player.name;
+                    playerSelect.appendChild(option);
+                }
+            });
+        }
+
+        async function kickPlayer() {
+            const playerToKickId = document.getElementById('playerToKick').value;
+            if (!playerToKickId) {
+                showMessage('Please select a player to remove', 'error');
+                return;
+            }
+
+            try {
+                const { data: gameData, error: fetchError } = await supabase
+                    .from('games')
+                    .select('*')
+                    .eq('code', currentGame)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                const playerToKick = gameData.players[playerToKickId];
+                const updatedPlayers = { ...gameData.players };
+                delete updatedPlayers[playerToKickId];
+
+                // If kicked player was czar, pick new czar
+                let updateData = { players: updatedPlayers };
+                if (gameData.current_czar === playerToKickId) {
+                    const remainingPlayerIds = Object.keys(updatedPlayers);
+                    if (remainingPlayerIds.length > 0) {
+                        updateData.current_czar = remainingPlayerIds[0];
+                    }
+                }
+
+                const { error: updateError } = await supabase
+                    .from('games')
+                    .update(updateData)
+                    .eq('code', currentGame);
+
+                if (updateError) throw updateError;
+
+                hideKickMenu();
+                showMessage(`${playerToKick.name} has been removed from the game`);
+
+            } catch (error) {
+                console.error('Error kicking player:', error);
+                showMessage('Error removing player: ' + error.message, 'error');
+            }
+        }
+
+        function updateBlackCardDisplay(gameData) {
+            const blackCards = gameData.black_cards || [];
+            const displayCard = blackCards[blackCardIndex] || 'No card available';
+            document.getElementById('blackCardDisplay').textContent = displayCard;
+        }
+
+        // Card Czar functions
+        async function previousBlackCard() {
+            const { data: gameData, error } = await supabase
+                .from('games')
+                .select('*')
+                .eq('code', currentGame)
+                .single();
+
+            if (error || !gameData) return;
+
+            const blackCards = gameData.black_cards || [];
+            blackCardIndex = (blackCardIndex - 1 + blackCards.length) % blackCards.length;
+            
+            await supabase
+                .from('games')
+                .update({ black_card_index: blackCardIndex })
+                .eq('code', currentGame);
+
+            updateBlackCardDisplay(gameData);
+        }
+
+        async function nextBlackCard() {
+            const { data: gameData, error } = await supabase
+                .from('games')
+                .select('*')
+                .eq('code', currentGame)
+                .single();
+
+            if (error || !gameData) return;
+
+            const blackCards = gameData.black_cards || [];
+            blackCardIndex = (blackCardIndex + 1) % blackCards.length;
+            
+            await supabase
+                .from('games')
+                .update({ black_card_index: blackCardIndex })
+                .eq('code', currentGame);
+
+            updateBlackCardDisplay(gameData);
+        }
+
+        async function confirmBlackCard() {
+            const { data: gameData, error } = await supabase
+                .from('games')
+                .select('*')
+                .eq('code', currentGame)
+                .single();
+
+            if (error || !gameData) return;
+
+            const selectedCard = gameData.black_cards[blackCardIndex];
+            
+            await supabase
+                .from('games')
+                .update({ 
+                    current_black_card: selectedCard,
+                    black_card_confirmed: true
+                })
+                .eq('code', currentGame);
+
+            showMessage('Black card confirmed! Players can now submit answers.');
+        }
+
+        // Custom answer functions
+        function writeCustomAnswer() {
+            document.getElementById('customAnswerSection').classList.remove('hidden');
+            document.getElementById('gameActions').style.display = 'none';
+            currentPlayer.selectedCard = null;
+            document.querySelectorAll('.white-card').forEach(c => c.classList.remove('selected'));
+        }
+
+        function cancelCustomAnswer() {
+            document.getElementById('customAnswerSection').classList.add('hidden');
+            document.getElementById('gameActions').style.display = 'flex';
+            document.getElementById('customAnswerInput').value = '';
+        }
+
+        async function submitCustomAnswer() {
+            const customText = document.getElementById('customAnswerInput').value.trim();
+            if (!customText) {
+                showMessage('Please enter an answer', 'error');
+                return;
+            }
+
+            try {
+                const { data: gameData, error: fetchError } = await supabase
+                    .from('games')
+                    .select('*')
+                    .eq('code', currentGame)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                const updatedSubmissions = {
+                    ...gameData.submitted_cards,
+                    [currentPlayer.id]: customText
+                };
+
+                const { error: updateError } = await supabase
+                    .from('games')
+                    .update({ submitted_cards: updatedSubmissions })
+                    .eq('code', currentGame);
+
+                if (updateError) throw updateError;
+
+                cancelCustomAnswer();
+                showMessage('Custom answer submitted!');
+
+            } catch (error) {
+                console.error('Error submitting custom answer:', error);
+                showMessage('Error submitting answer: ' + error.message, 'error');
+            }
+        }
+
+        // Discard hand function
+        async function discardHand() {
+            if (!confirm('Are you sure you want to discard your hand and draw new cards?')) return;
+
+            try {
+                const { data: gameData, error: fetchError } = await supabase
+                    .from('games')
+                    .select('*')
+                    .eq('code', currentGame)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                const player = gameData.players[currentPlayer.id];
+                const cardsPerPlayer = gameData.cards_per_player || 7;
+                const whiteCards = [...gameData.white_cards];
+                
+                // Get new hand
+                const newHand = [];
+                for (let i = 0; i < cardsPerPlayer; i++) {
+                    if (whiteCards.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * whiteCards.length);
+                        newHand.push(whiteCards[randomIndex]);
+                        whiteCards.splice(randomIndex, 1);
+                    }
+                }
+
+                const updatedPlayers = {
+                    ...gameData.players,
+                    [currentPlayer.id]: {
+                        ...player,
+                        hand: newHand
+                    }
+                };
+
+                const { error: updateError } = await supabase
+                    .from('games')
+                    .update({ players: updatedPlayers })
+                    .eq('code', currentGame);
+
+                if (updateError) throw updateError;
+
+                currentPlayer.selectedCard = null;
+                showMessage('Hand discarded! New cards dealt.');
+
+            } catch (error) {
+                console.error('Error discarding hand:', error);
+                showMessage('Error discarding hand: ' + error.message, 'error');
+            }
         }
 
         function selectCard(index, card) {
@@ -1155,6 +1645,7 @@
                 }
 
                 const firstCzar = gameData.host_id;
+                const cardsPerPlayer = gameData.cards_per_player || 7;
 
                 const updatedPlayers = { ...gameData.players };
                 const whiteCards = [...gameData.white_cards];
@@ -1162,7 +1653,7 @@
 
                 Object.keys(updatedPlayers).forEach(playerId => {
                     const hand = [];
-                    for (let i = 0; i < 7; i++) {
+                    for (let i = 0; i < cardsPerPlayer; i++) {
                         if (cardIndex < whiteCards.length) {
                             hand.push(whiteCards[cardIndex]);
                             cardIndex++;
@@ -1181,7 +1672,9 @@
                         current_czar: firstCzar,
                         current_black_card: firstBlackCard,
                         players: updatedPlayers,
-                        submitted_cards: {}
+                        submitted_cards: {},
+                        black_card_index: 0,
+                        black_card_confirmed: false
                     })
                     .eq('code', currentGame);
 
@@ -1240,6 +1733,17 @@
             window.updateCards = updateCards;
             window.submitCard = submitCard;
             window.leaveGame = leaveGame;
+            window.previousBlackCard = previousBlackCard;
+            window.nextBlackCard = nextBlackCard;
+            window.confirmBlackCard = confirmBlackCard;
+            window.writeCustomAnswer = writeCustomAnswer;
+            window.cancelCustomAnswer = cancelCustomAnswer;
+            window.submitCustomAnswer = submitCustomAnswer;
+            window.discardHand = discardHand;
+            window.selectWinner = selectWinner;
+            window.showKickMenu = showKickMenu;
+            window.hideKickMenu = hideKickMenu;
+            window.kickPlayer = kickPlayer;
             
             initializeApp();
         });
