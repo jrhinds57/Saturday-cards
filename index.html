@@ -932,6 +932,15 @@
         // Global functions that need to be available immediately
         window.joinOrCreateGame = joinOrCreateGame;
         window.showGlobalCardManagement = showGlobalCardManagement;
+        
+        // Placeholder functions for host controls (defined early to prevent errors)
+        window.showCardManagement = function(type = 'black') {
+            alert('Card management during games is not available in local mode. Use "Manage Global Card Decks" instead.');
+        };
+        
+        window.closeCardManagement = function() {
+            // Placeholder function
+        };
 
         // Game state
         let currentGame = null;
