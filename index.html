@@ -253,82 +253,11 @@
             text-align: center;
         }
 
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 999;
-        }
-
-        .deck-stats {
-            margin: 15px 0;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .deck-stats h4 {
-            color: #4ecdc4;
-            margin-bottom: 5px;
-        }
-
-        .deck-management-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .textarea-container {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .textarea-container textarea {
-            width: 100%;
-            height: 150px;
-            padding: 15px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-size: 14px;
-            resize: vertical;
-            font-family: Arial, sans-serif;
-        }
-
-        .textarea-container textarea::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .card-counter {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .removable-card {
-            margin: 5px 0;
-            padding: 10px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-            border-left: 3px solid transparent;
-        }
-
-        .removable-card:hover {
-            background: rgba(255, 99, 107, 0.3);
-            border-left-color: #dc3545;
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         @media (max-width: 768px) {
@@ -386,47 +315,6 @@
                         <input type="text" id="gameCode" placeholder="Game code (leave empty to create)" maxlength="4">
                         <button class="btn" onclick="joinOrCreateGame()">Join/Create Game</button>
                     </div>
-                    
-                    <div class="actions" style="margin-top: 20px;">
-                        <button class="btn btn-secondary" onclick="showGlobalCardManagement()">Manage Global Card Decks</button>
-                    </div>
-                </div>
-
-                <!-- Global Card Management Modal -->
-                <div id="globalCardManagementModal" class="game-section hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; max-height: 90vh; overflow-y: auto; width: 95%; max-width: 900px;">
-                    <h2 style="text-align: center; margin-bottom: 20px;">🎴 Manage Global Card Decks</h2>
-                    <p style="text-align: center; margin-bottom: 20px; color: #4ecdc4;">Changes made here will affect ALL future games</p>
-                    
-                    <div class="deck-management-actions">
-                        <button class="btn btn-secondary" onclick="switchCardType('black')">Edit Black Cards</button>
-                        <button class="btn btn-secondary" onclick="switchCardType('white')">Edit White Cards</button>
-                        <button class="btn" style="background: linear-gradient(135deg, #ffc107, #e0a800);" onclick="resetToDefaults()">Reset to Defaults</button>
-                        <button class="btn" onclick="closeGlobalCardManagement()">Done</button>
-                    </div>
-
-                    <div id="deckStats" class="deck-stats">
-                        <!-- Deck statistics will be shown here -->
-                    </div>
-
-                    <div id="messageContainer">
-                        <!-- Success/error messages will appear here -->
-                    </div>
-                    
-                    <div class="textarea-container">
-                        <h4 id="globalCardTypeTitle">Add New Black Cards:</h4>
-                        <textarea id="globalBulkCardInput" placeholder="Paste cards here, one per line...&#10;&#10;Example:&#10;What's the next Happy Meal toy?&#10;___: kid tested, mother approved.&#10;I drink to forget ___."></textarea>
-                        <div class="card-counter" id="cardCounter">0 cards</div>
-                    </div>
-                    
-                    <div class="actions" style="margin-bottom: 20px;">
-                        <button class="btn btn-secondary" onclick="addGlobalBulkCards()">Add Cards to Global Deck</button>
-                        <button class="btn" style="background: linear-gradient(135deg, #dc3545, #c82333);" onclick="clearAllCards()">Clear All Cards of This Type</button>
-                    </div>
-                    
-                    <h4 style="margin: 20px 0;">Current Cards (click to remove):</h4>
-                    <div id="globalCurrentCardsList" style="max-height: 400px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 10px;">
-                        <!-- Current cards will be listed here -->
-                    </div>
                 </div>
 
                 <!-- Game Info Section -->
@@ -461,15 +349,24 @@
     </div>
 
     <!-- Supabase SDK -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         // Supabase Configuration
         const supabaseUrl = 'https://krrrwuoehltojuzjizqf.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtycnJ3dW9laGx0b2p1emppenFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMTc2MjcsImV4cCI6MjA3NDU5MzYyN30.t36l0IPV3k0WHWSLZbv1fA_nBerBP-t51e9qjzgzXrM';
 
-        // Initialize Supabase
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // Initialize Supabase with error checking
+        let supabase;
+        try {
+            if (typeof window.supabase === 'undefined') {
+                throw new Error('Supabase library not loaded');
+            }
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        } catch (error) {
+            console.error('Failed to initialize Supabase:', error);
+            showMessage('Failed to load game library. Please refresh the page.', 'error');
+        }
 
         // Game state
         let currentGame = null;
@@ -478,7 +375,6 @@
             name: '',
             isHost: false
         };
-        let globalCardType = 'black';
 
         // Default card decks
         const defaultBlackCards = [
@@ -571,307 +467,7 @@
             }, 5000);
         }
 
-        function updateCardCounter() {
-            const textarea = document.getElementById('globalBulkCardInput');
-            const counter = document.getElementById('cardCounter');
-            if (textarea && counter) {
-                const lines = textarea.value.split('\n').filter(line => line.trim()).length;
-                counter.textContent = `${lines} card${lines !== 1 ? 's' : ''}`;
-            }
-        }
-
-        // Global Card Management Functions
-        async function showGlobalCardManagement() {
-            const overlay = document.createElement('div');
-            overlay.className = 'overlay';
-            overlay.onclick = closeGlobalCardManagement;
-            document.body.appendChild(overlay);
-            
-            document.getElementById('globalCardManagementModal').classList.remove('hidden');
-            await switchCardType('black');
-            updateDeckStats();
-        }
-
-        function closeGlobalCardManagement() {
-            document.getElementById('globalCardManagementModal').classList.add('hidden');
-            const overlay = document.querySelector('.overlay');
-            if (overlay) overlay.remove();
-            document.getElementById('globalBulkCardInput').value = '';
-            document.getElementById('messageContainer').innerHTML = '';
-        }
-
-        async function switchCardType(type) {
-            globalCardType = type;
-            document.getElementById('globalCardTypeTitle').textContent = 
-                `Add New ${type.charAt(0).toUpperCase() + type.slice(1)} Cards:`;
-            
-            const textarea = document.getElementById('globalBulkCardInput');
-            if (type === 'black') {
-                textarea.placeholder = `Paste black cards here, one per line...
-
-Example:
-What's the next Happy Meal toy?
-___: kid tested, mother approved.
-I drink to forget ___.
-___ + ___ = ___.`;
-            } else {
-                textarea.placeholder = `Paste white cards here, one per line...
-
-Example:
-A mime having a stroke
-Vigorous jazz hands
-My collection of high-tech sex toys
-Poor life choices`;
-            }
-            
-            await updateGlobalCurrentCardsList();
-            updateDeckStats();
-        }
-
-        async function updateDeckStats() {
-            try {
-                const cardDecks = await getCardDecks();
-                const blackCount = cardDecks.blackCards ? cardDecks.blackCards.length : 0;
-                const whiteCount = cardDecks.whiteCards ? cardDecks.whiteCards.length : 0;
-                
-                document.getElementById('deckStats').innerHTML = `
-                    <h4>Current Deck Status</h4>
-                    <p>Black Cards: ${blackCount} | White Cards: ${whiteCount}</p>
-                    <p>Total Cards: ${blackCount + whiteCount}</p>
-                    <small>Last updated: ${cardDecks.lastUpdated ? new Date(cardDecks.lastUpdated).toLocaleDateString() : 'Never'}</small>
-                `;
-            } catch (error) {
-                console.error('Error updating deck stats:', error);
-            }
-        }
-
-        async function getCardDecks() {
-            try {
-                const { data, error } = await supabase
-                    .from('card_decks')
-                    .select('*')
-                    .order('id', { ascending: false })
-                    .limit(1);
-
-                if (error) {
-                    console.error('Error fetching card decks:', error);
-                    return getDefaultDecks();
-                }
-
-                if (!data || data.length === 0) {
-                    console.log('No card decks found, using defaults');
-                    return getDefaultDecks();
-                }
-
-                const latest = data[0];
-                return {
-                    blackCards: latest.blackCards || defaultBlackCards,
-                    whiteCards: latest.whiteCards || defaultWhiteCards,
-                    lastUpdated: latest.lastUpdated || Date.now(),
-                    version: latest.version || 1
-                };
-            } catch (error) {
-                console.error('Error in getCardDecks:', error);
-                return getDefaultDecks();
-            }
-        }
-
-        function getDefaultDecks() {
-            return {
-                blackCards: [...defaultBlackCards],
-                whiteCards: [...defaultWhiteCards],
-                lastUpdated: Date.now(),
-                version: 1
-            };
-        }
-
-        async function updateGlobalCurrentCardsList() {
-            try {
-                const cardDecks = await getCardDecks();
-                const cards = globalCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
-                const listContainer = document.getElementById('globalCurrentCardsList');
-                
-                if (!cards || cards.length === 0) {
-                    listContainer.innerHTML = `<p style="text-align: center; color: #999; padding: 20px;">No ${globalCardType} cards found. Add some cards above!</p>`;
-                    return;
-                }
-                
-                listContainer.innerHTML = cards.map((card, index) => 
-                    `<div class="removable-card" onclick="removeGlobalCard(${index})" title="Click to remove this card permanently">
-                        <strong>${index + 1}.</strong> ${card}
-                    </div>`
-                ).join('');
-            } catch (error) {
-                console.error('Error updating cards list:', error);
-            }
-        }
-
-        async function addGlobalBulkCards() {
-            const textarea = document.getElementById('globalBulkCardInput');
-            if (!textarea || !textarea.value) {
-                showMessage('Please enter some cards, one per line', 'error');
-                return;
-            }
-            
-            const newCards = textarea.value.split('\n')
-                .map(card => card.trim())
-                .filter(card => card && card.length > 0);
-            
-            if (newCards.length === 0) {
-                showMessage('Please enter some cards, one per line', 'error');
-                return;
-            }
-
-            try {
-                const cardDecks = await getCardDecks();
-                const existingCards = globalCardType === 'black' ? (cardDecks.blackCards || []) : (cardDecks.whiteCards || []);
-                
-                const duplicates = newCards.filter(card => existingCards.includes(card));
-                const uniqueNewCards = newCards.filter(card => !existingCards.includes(card));
-                
-                if (uniqueNewCards.length === 0) {
-                    showMessage('All cards already exist in the deck', 'error');
-                    return;
-                }
-
-                const combinedCards = [...existingCards, ...uniqueNewCards];
-
-                await updateGlobalCardDecks(
-                    globalCardType === 'black' ? combinedCards : (cardDecks.blackCards || []),
-                    globalCardType === 'white' ? combinedCards : (cardDecks.whiteCards || [])
-                );
-                
-                let message = `Successfully added ${uniqueNewCards.length} ${globalCardType} cards to global deck!`;
-                if (duplicates.length > 0) {
-                    message += ` (${duplicates.length} duplicates skipped)`;
-                }
-                
-                showMessage(message);
-                textarea.value = '';
-                updateCardCounter();
-                await updateGlobalCurrentCardsList();
-                updateDeckStats();
-            } catch (error) {
-                console.error('Error adding cards:', error);
-                showMessage('Error adding cards: ' + error.message, 'error');
-            }
-        }
-
-        async function updateGlobalCardDecks(blackCards, whiteCards) {
-            try {
-                const deckData = {
-                    blackCards: blackCards,
-                    whiteCards: whiteCards,
-                    lastUpdated: Date.now(),
-                    version: 1
-                };
-
-                // First try to update existing record
-                const { data: existingData, error: fetchError } = await supabase
-                    .from('card_decks')
-                    .select('id')
-                    .order('id', { ascending: false })
-                    .limit(1);
-
-                if (fetchError) {
-                    console.error('Error fetching existing decks:', fetchError);
-                }
-
-                if (existingData && existingData.length > 0) {
-                    // Update existing record
-                    const { error: updateError } = await supabase
-                        .from('card_decks')
-                        .update(deckData)
-                        .eq('id', existingData[0].id);
-                    
-                    if (updateError) throw updateError;
-                } else {
-                    // Insert new record
-                    const { error: insertError } = await supabase
-                        .from('card_decks')
-                        .insert([deckData]);
-                    
-                    if (insertError) throw insertError;
-                }
-
-                console.log('Card decks updated successfully');
-            } catch (error) {
-                console.error('Error updating global card decks:', error);
-                throw error;
-            }
-        }
-
-        async function removeGlobalCard(index) {
-            if (!confirm(`Remove this ${globalCardType} card permanently from all games?`)) return;
-
-            try {
-                const cardDecks = await getCardDecks();
-                const cardArray = globalCardType === 'black' ? cardDecks.blackCards : cardDecks.whiteCards;
-                
-                if (!cardArray || index >= cardArray.length) {
-                    showMessage('Card not found', 'error');
-                    return;
-                }
-                
-                const removedCard = cardArray[index];
-                cardArray.splice(index, 1);
-                
-                await updateGlobalCardDecks(
-                    globalCardType === 'black' ? cardArray : cardDecks.blackCards,
-                    globalCardType === 'white' ? cardArray : cardDecks.whiteCards
-                );
-                
-                showMessage(`"${removedCard}" removed from ${globalCardType} deck!`);
-                await updateGlobalCurrentCardsList();
-                updateDeckStats();
-            } catch (error) {
-                console.error('Error removing card:', error);
-                showMessage('Error removing card: ' + error.message, 'error');
-            }
-        }
-
-        async function clearAllCards() {
-            const cardType = globalCardType;
-            if (!confirm(`Are you sure you want to clear ALL ${cardType} cards? This will affect all games and cannot be undone!`)) {
-                return;
-            }
-
-            if (!confirm(`This will permanently delete all ${cardType} cards from the global deck. Are you absolutely sure?`)) {
-                return;
-            }
-
-            try {
-                const cardDecks = await getCardDecks();
-                
-                await updateGlobalCardDecks(
-                    cardType === 'black' ? [] : cardDecks.blackCards,
-                    cardType === 'white' ? [] : cardDecks.whiteCards
-                );
-                
-                showMessage(`All ${cardType} cards have been cleared from the global deck`);
-                await updateGlobalCurrentCardsList();
-                updateDeckStats();
-            } catch (error) {
-                console.error('Error clearing cards:', error);
-                showMessage('Error clearing cards: ' + error.message, 'error');
-            }
-        }
-
-        async function resetToDefaults() {
-            if (!confirm('Reset card decks to default? This will replace all current cards with the original set.')) {
-                return;
-            }
-
-            try {
-                await updateGlobalCardDecks(defaultBlackCards, defaultWhiteCards);
-                showMessage('Card decks reset to defaults!');
-                await updateGlobalCurrentCardsList();
-                updateDeckStats();
-            } catch (error) {
-                console.error('Error resetting cards:', error);
-                showMessage('Error resetting cards: ' + error.message, 'error');
-            }
-        }
+        // UI Management
         function showSection(sectionId) {
             document.querySelectorAll('.game-section, #gameStatus').forEach(section => {
                 section.classList.add('hidden');
@@ -1174,6 +770,8 @@ Poor life choices`;
             await loadGameData(currentGame);
             showMessage('Player list refreshed!');
         }
+
+        async function startGame() {
             if (!currentPlayer.isHost) return;
 
             try {
@@ -1243,13 +841,12 @@ Poor life choices`;
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
+            // Make functions globally accessible
+            window.joinOrCreateGame = joinOrCreateGame;
+            window.startGame = startGame;
+            window.refreshGameData = refreshGameData;
             
-            // Add card counter event listener
-            const textarea = document.getElementById('globalBulkCardInput');
-            if (textarea) {
-                textarea.addEventListener('input', updateCardCounter);
-            }
+            initializeApp();
         });
     </script>
 </body>
