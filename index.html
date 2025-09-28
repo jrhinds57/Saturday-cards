@@ -874,6 +874,19 @@
                         console.log('LocalStorage not available');
                     }
                     
+                    if (path === 'globalCardDecks') {
+                        // Return properly structured data for card decks
+                        if (!this.data.globalCardDecks) {
+                            this.data.globalCardDecks = {
+                                blackCards: [...defaultBlackCards],
+                                whiteCards: [...defaultWhiteCards],
+                                lastUpdated: Date.now(),
+                                version: 1
+                            };
+                        }
+                        return this.data.globalCardDecks;
+                    }
+                    
                     const keys = path.split('/');
                     let current = this.data;
                     
@@ -1029,43 +1042,67 @@
 
         // Get current card decks from Firebase
         async function getCardDecks() {
-            const snapshot = await database.ref('globalCardDecks').once('value');
-            return snapshot.val() || {
-                blackCards: defaultBlackCards,
-                whiteCards: defaultWhiteCards
-            };
+            try {
+                const snapshot = await database.ref('globalCardDecks').once('value');
+                const data = snapshot.val();
+                
+                // Return default decks if no data exists
+                if (!data || !data.blackCards || !data.whiteCards) {
+                    return {
+                        blackCards: [...defaultBlackCards],
+                        whiteCards: [...defaultWhiteCards],
+                        lastUpdated: Date.now(),
+                        version: 1
+                    };
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error getting card decks:', error);
+                return {
+                    blackCards: [...defaultBlackCards],
+                    whiteCards: [...defaultWhiteCards],
+                    lastUpdated: Date.now(),
+                    version: 1
+                };
+            }
         }
 
         // Update global card decks
         async function updateGlobalCardDecks(blackCards, whiteCards) {
-            // Get current version number first
-            const currentData = await getCardDecks();
-            const currentVersion = currentData.version || 0;
-            
-            const updates = {
-                blackCards: blackCards,
-                whiteCards: whiteCards,
-                lastUpdated: Date.now(),
-                version: currentVersion + 1
-            };
-            
-            await database.ref('globalCardDecks').update(updates);
-            
-            // Update all active games with new decks
-            const gamesSnapshot = await database.ref('games').once('value');
-            const games = gamesSnapshot.val();
-            
-            if (games) {
-                const gameUpdates = {};
-                Object.keys(games).forEach(gameCode => {
-                    gameUpdates[`games/${gameCode}/blackCards`] = blackCards;
-                    gameUpdates[`games/${gameCode}/whiteCards`] = whiteCards;
-                });
+            try {
+                // Get current version number first
+                const currentData = await getCardDecks();
+                const currentVersion = currentData.version || 0;
                 
-                if (Object.keys(gameUpdates).length > 0) {
-                    await database.ref().update(gameUpdates);
-                    console.log(`Updated ${Object.keys(games).length} active games with new card decks`);
+                const updates = {
+                    blackCards: blackCards,
+                    whiteCards: whiteCards,
+                    lastUpdated: Date.now(),
+                    version: currentVersion + 1
+                };
+                
+                await database.ref('globalCardDecks').update(updates);
+                
+                // Update all active games with new decks
+                const gamesSnapshot = await database.ref('games').once('value');
+                const games = gamesSnapshot.val();
+                
+                if (games) {
+                    const gameUpdates = {};
+                    Object.keys(games).forEach(gameCode => {
+                        gameUpdates[`games/${gameCode}/blackCards`] = blackCards;
+                        gameUpdates[`games/${gameCode}/whiteCards`] = whiteCards;
+                    });
+                    
+                    if (Object.keys(gameUpdates).length > 0) {
+                        await database.ref().update(gameUpdates);
+                        console.log(`Updated ${Object.keys(games).length} active games with new card decks`);
+                    }
                 }
+            } catch (error) {
+                console.error('Error updating global card decks:', error);
+                throw error;
             }
         }
 
