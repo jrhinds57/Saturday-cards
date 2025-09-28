@@ -916,6 +916,7 @@
             };
 
             window.database = mockDatabase;
+            database = mockDatabase; // Set global variable
             initializeApp();
         }
 
@@ -927,6 +928,10 @@
 
         // Make database globally accessible
         let database;
+
+        // Global functions that need to be available immediately
+        window.joinOrCreateGame = joinOrCreateGame;
+        window.showGlobalCardManagement = showGlobalCardManagement;
 
         // Game state
         let currentGame = null;
@@ -2000,6 +2005,27 @@ Poor life choices`;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // Make all functions globally accessible for HTML onclick handlers
+            window.joinOrCreateGame = joinOrCreateGame;
+            window.showGlobalCardManagement = showGlobalCardManagement;
+            window.closeGlobalCardManagement = closeGlobalCardManagement;
+            window.switchCardType = switchCardType;
+            window.resetToDefaults = resetToDefaults;
+            window.addGlobalBulkCards = addGlobalBulkCards;
+            window.clearAllCards = clearAllCards;
+            window.removeGlobalCard = removeGlobalCard;
+            window.startGame = startGame;
+            window.showCardManagement = showCardManagement;
+            window.closeCardManagement = closeCardManagement;
+            window.selectBlackCardOption = selectBlackCardOption;
+            window.redrawBlackCards = redrawBlackCards;
+            window.selectBlackCard = selectBlackCard;
+            window.selectWhiteCard = selectWhiteCard;
+            window.submitAnswer = submitAnswer;
+            window.redrawHand = redrawHand;
+            window.selectSubmission = selectSubmission;
+            window.selectWinner = selectWinner;
+            
             // Initialization will be handled by the window load event
             // to ensure Firebase is loaded first
         });
