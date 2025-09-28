@@ -446,6 +446,7 @@
                     </div>
                     <div id="hostControls" class="hidden">
                         <div class="actions" style="margin-top: 15px;">
+                            <button class="btn btn-secondary" onclick="refreshGameData()">Refresh Player List</button>
                             <button class="btn" onclick="startGame()">Start Game</button>
                         </div>
                     </div>
@@ -1082,21 +1083,39 @@ Poor life choices`;
         }
 
         function setupGameListener(gameCode) {
+            console.log('Setting up game listener for code:', gameCode);
+            
             // Subscribe to real-time updates
-            supabase
-                .channel('game-changes')
+            const subscription = supabase
+                .channel(`game-${gameCode}`)
                 .on('postgres_changes',
                     {
-                        event: 'UPDATE',
+                        event: '*',
                         schema: 'public',
                         table: 'games',
                         filter: `code=eq.${gameCode}`
                     },
                     (payload) => {
-                        updateGameDisplay(payload.new);
+                        console.log('Real-time update received:', payload);
+                        if (payload.new) {
+                            updateGameDisplay(payload.new);
+                        }
                     }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    console.log('Subscription status:', status);
+                });
+
+            // Also do periodic polling as backup
+            const pollInterval = setInterval(async () => {
+                await loadGameData(gameCode);
+            }, 3000);
+
+            // Store cleanup function
+            window.gameCleanup = () => {
+                clearInterval(pollInterval);
+                supabase.removeChannel(subscription);
+            };
 
             // Initial load
             loadGameData(gameCode);
@@ -1149,7 +1168,12 @@ Poor life choices`;
             updateGameStatus('Waiting for players to join...');
         }
 
-        async function startGame() {
+        async function refreshGameData() {
+            if (!currentGame) return;
+            console.log('Manually refreshing game data for:', currentGame);
+            await loadGameData(currentGame);
+            showMessage('Player list refreshed!');
+        }
             if (!currentPlayer.isHost) return;
 
             try {
