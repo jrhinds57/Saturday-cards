@@ -166,6 +166,11 @@
             background: linear-gradient(135deg, #44a08d, #4ecdc4);
         }
 
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
         .game-info {
             text-align: center;
             margin-bottom: 20px;
@@ -260,6 +265,115 @@
             flex-wrap: wrap;
         }
 
+        .card-customization {
+            margin-bottom: 20px;
+        }
+
+        .card-customization h3 {
+            text-align: center;
+            color: #4ecdc4;
+            margin-bottom: 15px;
+        }
+
+        .card-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .card-section h4 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .card-section textarea {
+            width: 100%;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            color: white;
+            padding: 10px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .card-section textarea::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .card-help {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
+        }
+
+        .black-card {
+            background: rgba(50, 50, 50, 0.8);
+            border: 2px solid #444;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px 0;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .white-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .white-card {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .white-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .white-card.selected {
+            border-color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.2);
+            color: white;
+        }
+
+        .round-info {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid #ffd700;
+            border-radius: 10px;
+            color: #ffd700;
+        }
+
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -285,6 +399,10 @@
             
             .join-form input {
                 min-width: auto;
+            }
+
+            .card-sections {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -326,6 +444,29 @@
                     </div>
                 </div>
 
+                <!-- Card Customization Section -->
+                <div id="cardCustomization" class="game-section hidden">
+                    <div class="card-customization">
+                        <h3>📝 Customize Cards (Optional)</h3>
+                        <div class="card-sections">
+                            <div class="card-section">
+                                <h4>Black Cards (Questions)</h4>
+                                <textarea id="blackCardsInput" placeholder="Enter one card per line. Use ___ for blanks.&#10;Example:&#10;What's my secret power?&#10;___ + ___ = ___."></textarea>
+                                <div class="card-help">One card per line. Use ___ for blanks that players fill in.</div>
+                            </div>
+                            <div class="card-section">
+                                <h4>White Cards (Answers)</h4>
+                                <textarea id="whiteCardsInput" placeholder="Enter one card per line.&#10;Example:&#10;A mime having a stroke&#10;My genitals&#10;Poor life choices"></textarea>
+                                <div class="card-help">One card per line. These are the answer options for players.</div>
+                            </div>
+                        </div>
+                        <div class="actions" style="margin-top: 15px;">
+                            <button class="btn btn-secondary btn-small" onclick="loadDefaultCards()">Reset to Defaults</button>
+                            <button class="btn btn-small" onclick="updateCards()">Update Cards</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Players List -->
                 <div id="playersSection" class="game-section hidden">
                     <h2 style="text-align: center; margin-bottom: 20px;">Players</h2>
@@ -337,6 +478,27 @@
                             <button class="btn btn-secondary" onclick="refreshGameData()">Refresh Player List</button>
                             <button class="btn" onclick="startGame()">Start Game</button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Game Play Section -->
+                <div id="gamePlaySection" class="game-section hidden">
+                    <div id="roundInfo" class="round-info">
+                        <h3>Round <span id="currentRound">1</span> of <span id="maxRounds">10</span></h3>
+                        <p>Card Czar: <span id="currentCzar">Player Name</span></p>
+                    </div>
+
+                    <div id="blackCardDisplay" class="black-card">
+                        <!-- Current black card will appear here -->
+                    </div>
+
+                    <div id="playerHand" class="white-cards">
+                        <!-- Player's white cards will appear here -->
+                    </div>
+
+                    <div id="gameActions" class="actions">
+                        <button id="submitCard" class="btn" onclick="submitCard()" disabled>Submit Selected Card</button>
+                        <button class="btn btn-secondary" onclick="leaveGame()">Leave Game</button>
                     </div>
                 </div>
 
@@ -373,7 +535,9 @@
         let currentPlayer = {
             id: null,
             name: '',
-            isHost: false
+            isHost: false,
+            hand: [],
+            selectedCard: null
         };
 
         // Default card decks
@@ -496,10 +660,15 @@
                     playerDiv.classList.add('host');
                 }
 
+                if (gameData.current_czar === player.id) {
+                    playerDiv.classList.add('czar');
+                }
+
                 playerDiv.innerHTML = `
                     <div class="player-name">
                         ${player.name}
                         ${player.id === gameData.host_id ? ' 👑' : ''}
+                        ${gameData.current_czar === player.id ? ' 🎭' : ''}
                     </div>
                     <div class="player-score">Score: ${player.score || 0}</div>
                 `;
@@ -534,6 +703,10 @@
                     scoreDiv.classList.add('host');
                 }
 
+                if (gameData.current_czar === player.id) {
+                    scoreDiv.classList.add('czar');
+                }
+
                 // Add rank indicator for top 3
                 let rankIndicator = '';
                 if (index === 0 && player.score > 0) rankIndicator = '🥇';
@@ -544,11 +717,67 @@
                     <div class="score-player-name">
                         ${rankIndicator} ${player.name}
                         ${player.id === gameData.host_id ? ' 👑' : ''}
+                        ${gameData.current_czar === player.id ? ' 🎭' : ''}
                     </div>
                     <div class="score-player-points">${player.score || 0}</div>
                 `;
                 scoreboardContainer.appendChild(scoreDiv);
             });
+        }
+
+        // Card Management
+        function loadDefaultCards() {
+            document.getElementById('blackCardsInput').value = defaultBlackCards.join('\n');
+            document.getElementById('whiteCardsInput').value = defaultWhiteCards.join('\n');
+            showMessage('Default cards loaded!');
+        }
+
+        async function updateCards() {
+            if (!currentPlayer.isHost || !currentGame) {
+                showMessage('Only the host can update cards', 'error');
+                return;
+            }
+
+            const blackCardsText = document.getElementById('blackCardsInput').value.trim();
+            const whiteCardsText = document.getElementById('whiteCardsInput').value.trim();
+
+            let blackCards = defaultBlackCards;
+            let whiteCards = defaultWhiteCards;
+
+            if (blackCardsText) {
+                blackCards = blackCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
+            }
+
+            if (whiteCardsText) {
+                whiteCards = whiteCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
+            }
+
+            if (blackCards.length < 10) {
+                showMessage('Need at least 10 black cards', 'error');
+                return;
+            }
+
+            if (whiteCards.length < 50) {
+                showMessage('Need at least 50 white cards', 'error');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('games')
+                    .update({
+                        black_cards: blackCards,
+                        white_cards: whiteCards
+                    })
+                    .eq('code', currentGame);
+
+                if (error) throw error;
+
+                showMessage('Cards updated successfully!');
+            } catch (error) {
+                console.error('Error updating cards:', error);
+                showMessage('Error updating cards: ' + error.message, 'error');
+            }
         }
 
         // Game Logic
@@ -591,13 +820,17 @@
                     [currentPlayer.id]: {
                         id: currentPlayer.id,
                         name: currentPlayer.name,
-                        score: 0
+                        score: 0,
+                        hand: []
                     }
                 },
                 black_cards: defaultBlackCards,
                 white_cards: defaultWhiteCards,
                 round: 0,
                 max_rounds: 10,
+                current_black_card: null,
+                current_czar: null,
+                submitted_cards: {},
                 created_at: new Date().toISOString()
             };
 
@@ -640,9 +873,9 @@
                     if (existingPlayer) {
                         // Reconnect with same ID and score
                         currentPlayer.id = existingPlayer.id;
+                        currentPlayer.hand = existingPlayer.hand || [];
                         currentGame = gameCode;
                         setupGameListener(gameCode);
-                        showGameLobby(gameCode);
                         showMessage('Reconnected to game!');
                         return;
                     } else {
@@ -657,7 +890,8 @@
                     [currentPlayer.id]: {
                         id: currentPlayer.id,
                         name: currentPlayer.name,
-                        score: 0
+                        score: 0,
+                        hand: []
                     }
                 };
 
@@ -743,6 +977,15 @@
                 case 'waiting':
                     showWaitingPhase(gameData);
                     break;
+                case 'playing':
+                    showPlayingPhase(gameData);
+                    break;
+                case 'round_end':
+                    showRoundEndPhase(gameData);
+                    break;
+                case 'game_end':
+                    showGameEndPhase(gameData);
+                    break;
                 default:
                     updateGameStatus('Game in progress...');
                     break;
@@ -757,18 +1000,154 @@
             
             if (currentPlayer.isHost) {
                 document.getElementById('hostControls').classList.remove('hidden');
+                document.getElementById('cardCustomization').classList.remove('hidden');
+                loadDefaultCards();
             }
         }
 
         function showWaitingPhase(gameData) {
             updateGameStatus('Waiting for players to join...');
+            document.getElementById('gamePlaySection').classList.add('hidden');
+        }
+
+        function showPlayingPhase(gameData) {
+            document.getElementById('gameInfoSection').classList.add('hidden');
+            document.getElementById('playersSection').classList.add('hidden');
+            document.getElementById('cardCustomization').classList.add('hidden');
+            document.getElementById('gameStatus').classList.add('hidden');
+            document.getElementById('gamePlaySection').classList.remove('hidden');
+
+            // Update round info
+            document.getElementById('currentRound').textContent = gameData.round || 1;
+            document.getElementById('maxRounds').textContent = gameData.max_rounds || 10;
+            
+            const czarPlayer = Object.values(gameData.players).find(p => p.id === gameData.current_czar);
+            document.getElementById('currentCzar').textContent = czarPlayer ? czarPlayer.name : 'Unknown';
+
+            // Update black card
+            document.getElementById('blackCardDisplay').textContent = gameData.current_black_card || 'Loading...';
+
+            // Update player's hand if they're not the czar
+            updatePlayerHand(gameData);
+        }
+
+        function updatePlayerHand(gameData) {
+            const playerHandDiv = document.getElementById('playerHand');
+            const submitButton = document.getElementById('submitCard');
+            
+            // If this player is the czar, hide their hand
+            if (gameData.current_czar === currentPlayer.id) {
+                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #ffd700;">You are the Card Czar! Wait for players to submit their cards.</div>';
+                submitButton.style.display = 'none';
+                return;
+            }
+
+            submitButton.style.display = 'inline-block';
+
+            // Get current player's hand
+            const player = gameData.players[currentPlayer.id];
+            const hand = player?.hand || [];
+
+            if (hand.length === 0) {
+                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px;">Loading your cards...</div>';
+                return;
+            }
+
+            playerHandDiv.innerHTML = '';
+            hand.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'white-card';
+                cardDiv.textContent = card;
+                cardDiv.onclick = () => selectCard(index, card);
+                
+                if (currentPlayer.selectedCard === index) {
+                    cardDiv.classList.add('selected');
+                }
+                
+                playerHandDiv.appendChild(cardDiv);
+            });
+
+            // Update submit button
+            submitButton.disabled = currentPlayer.selectedCard === null;
+        }
+
+        function selectCard(index, card) {
+            // Remove previous selection
+            document.querySelectorAll('.white-card').forEach(c => c.classList.remove('selected'));
+            
+            // Add selection to clicked card
+            event.target.classList.add('selected');
+            currentPlayer.selectedCard = index;
+            
+            // Enable submit button
+            document.getElementById('submitCard').disabled = false;
+        }
+
+        async function submitCard() {
+            if (currentPlayer.selectedCard === null) return;
+
+            try {
+                const { data: gameData, error: fetchError } = await supabase
+                    .from('games')
+                    .select('*')
+                    .eq('code', currentGame)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                const player = gameData.players[currentPlayer.id];
+                const selectedCardText = player.hand[currentPlayer.selectedCard];
+
+                // Add submission to game data
+                const updatedSubmissions = {
+                    ...gameData.submitted_cards,
+                    [currentPlayer.id]: selectedCardText
+                };
+
+                // Remove card from player's hand
+                const updatedHand = [...player.hand];
+                updatedHand.splice(currentPlayer.selectedCard, 1);
+
+                const updatedPlayers = {
+                    ...gameData.players,
+                    [currentPlayer.id]: {
+                        ...player,
+                        hand: updatedHand
+                    }
+                };
+
+                const { error: updateError } = await supabase
+                    .from('games')
+                    .update({
+                        submitted_cards: updatedSubmissions,
+                        players: updatedPlayers
+                    })
+                    .eq('code', currentGame);
+
+                if (updateError) throw updateError;
+
+                currentPlayer.selectedCard = null;
+                showMessage('Card submitted!');
+
+            } catch (error) {
+                console.error('Error submitting card:', error);
+                showMessage('Error submitting card: ' + error.message, 'error');
+            }
+        }
+
+        function showRoundEndPhase(gameData) {
+            updateGameStatus('Round ended! Preparing next round...');
+        }
+
+        function showGameEndPhase(gameData) {
+            updateGameStatus('Game finished! Thanks for playing!');
         }
 
         async function refreshGameData() {
             if (!currentGame) return;
             console.log('Manually refreshing game data for:', currentGame);
             await loadGameData(currentGame);
-            showMessage('Player list refreshed!');
+            showMessage('Game data refreshed!');
         }
 
         async function startGame() {
@@ -790,11 +1169,38 @@
                     return;
                 }
 
+                // Pick first czar (host)
+                const playerIds = Object.keys(gameData.players);
+                const firstCzar = gameData.host_id;
+
+                // Deal initial hands
+                const updatedPlayers = { ...gameData.players };
+                const whiteCards = [...gameData.white_cards];
+                let cardIndex = 0;
+
+                Object.keys(updatedPlayers).forEach(playerId => {
+                    const hand = [];
+                    for (let i = 0; i < 7; i++) {
+                        if (cardIndex < whiteCards.length) {
+                            hand.push(whiteCards[cardIndex]);
+                            cardIndex++;
+                        }
+                    }
+                    updatedPlayers[playerId].hand = hand;
+                });
+
+                // Pick first black card
+                const firstBlackCard = gameData.black_cards[0];
+
                 const { error: updateError } = await supabase
                     .from('games')
                     .update({
                         phase: 'playing',
-                        round: 1
+                        round: 1,
+                        current_czar: firstCzar,
+                        current_black_card: firstBlackCard,
+                        players: updatedPlayers,
+                        submitted_cards: {}
                     })
                     .eq('code', currentGame);
 
@@ -804,6 +1210,15 @@
             } catch (error) {
                 console.error('Error starting game:', error);
                 showMessage('Error starting game: ' + error.message, 'error');
+            }
+        }
+
+        async function leaveGame() {
+            if (confirm('Are you sure you want to leave the game?')) {
+                if (window.gameCleanup) {
+                    window.gameCleanup();
+                }
+                location.reload();
             }
         }
 
@@ -845,6 +1260,10 @@
             window.joinOrCreateGame = joinOrCreateGame;
             window.startGame = startGame;
             window.refreshGameData = refreshGameData;
+            window.loadDefaultCards = loadDefaultCards;
+            window.updateCards = updateCards;
+            window.submitCard = submitCard;
+            window.leaveGame = leaveGame;
             
             initializeApp();
         });
