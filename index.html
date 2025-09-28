@@ -1,4 +1,139 @@
-<!DOCTYPE html>
+function updatePlayerHand(gameData) {
+            const playerHandDiv = document.getElementById('playerHand');
+            const submitButton = document.getElementById('submitCard');
+            const czarControls = document.getElementById('czarControls');
+            const gameActions = document.getElementById('gameActions');
+            const submissionStatus = document.getElementById('submissionStatus');
+            const submittedCardsSection = document.getElementById('submittedCardsSection');
+            
+            // Update submission status for all players
+            updateSubmissionStatus(gameData);
+            
+            // Check if all non-czar players have submitted
+            const nonCzarPlayers = Object.values(gameData.players).filter(p => p.id !== gameData.current_czar);
+            const submissionCount = gameData.submitted_cards ? Object.keys(gameData.submitted_cards).length : 0;
+            const allSubmitted = submissionCount === nonCzarPlayers.length && submissionCount > 0;
+            
+            if (allSubmitted && gameData.black_card_confirmed) {
+                // Show submitted cards to everyone
+                showSubmittedCardsForAllPlayers(gameData);
+                
+                if (gameData.current_czar === currentPlayer.id) {
+                    // Czar can pick winner
+                    document.getElementById('selectWinnerBtn').style.display = 'inline-block';
+                } else {
+                    // Other players just wait
+                    document.getElementById('selectWinnerBtn').style.display = 'none';
+                    playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #4ecdc4;">Waiting for Card Czar to choose the winner...</div>';
+                }
+                gameActions.classList.add('hidden');
+                czarControls.classList.add('hidden');
+                return;
+            }
+            
+            if (gameData.current_czar === currentPlayer.id) {
+                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #ffd700;">You are the Card Czar!</div>';
+                submitButton.style.display = 'none';
+                gameActions.classList.add('hidden');
+                submittedCardsSection.classList.add('hidden');
+                
+                // Show black card selection if not confirmed yet
+                if (!gameData.black_card_confirmed) {
+                    czarControls.classList.remove('hidden');
+                    blackCardIndex = gameData.black_card_index || 0;
+                    updateBlackCardDisplay(gameData);
+                } else {
+                    czarControls.classList.add('hidden');
+                    playerHandDiv.innerHTML += '<div style="text-align: center; padding: 10px;">Waiting for all players to submit their cards...</div>';
+                }
+                return;
+            }
+
+            czarControls.classList.add('hidden');
+            submittedCardsSection.classList.add('hidden');
+            gameActions.classList.remove('hidden');
+            submitButton.style.display = 'inline-block';
+
+            const player = gameData.players[currentPlayer.id];
+            const hand = player?.hand || [];
+
+            if (hand.length === 0) {
+                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px;">Loading your cards...</div>';
+                return;
+            }
+
+            playerHandDiv.innerHTML = '';
+            hand.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'white-card';
+                cardDiv.textContent = card;
+                cardDiv.onclick = () => selectCard(index, card);
+                
+                if (currentPlayer.selectedCard === index) {
+                    cardDiv.classList.add('selected');
+                }
+                
+                playerHandDiv.appendChild(cardDiv);
+            });
+
+            // Check if player already submitted
+            const hasSubmitted = gameData.submitted_cards && gameData.submitted_cards[currentPlayer.id];
+            if (hasSubmitted) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Card Submitted';
+                document.querySelectorAll('.white-card').forEach(card => {
+                    card.style.opacity = '0.5';
+                    card.onclick = null;
+                });
+                playerHandDiv.innerHTML += '<div style="text-align: center; padding: 10px; color: #28a745;">Card submitted! Waiting for other players...</div>';
+            } else {
+                submitButton.disabled = currentPlayer.selectedCard === null;
+                submitButton.textContent = 'Submit Selected Card';
+            }
+        }
+
+        function showSubmittedCardsForAllPlayers(gameData) {
+            const submittedCardsSection = document.getElementById('submittedCardsSection');
+            const submittedCardsList = document.getElementById('submittedCardsList');
+            
+            if (!gameData.submitted_cards || Object.keys(gameData.submitted_cards).length === 0) {
+                submittedCardsSection.classList.add('hidden');
+                return;
+            }
+
+            submittedCardsSection.classList.remove('hidden');
+            submittedCardsList.innerHTML = '';
+
+            // Update header based on whether user is czar
+            const header = submittedCardsSection.querySelector('h4');
+            if (gameData.current_czar === currentPlayer.id) {
+                header.textContent = 'Choose the Best Answer';
+                header.style.color = '#ffd700';
+            } else {
+                header.textContent = 'Submitted Answers';
+                header.style.color = '#4ecdc4';
+            }
+
+            // Shuffle the submissions to anonymize them
+            const submissions = Object.entries(gameData.submitted_cards);
+            const shuffledSubmissions = submissions.sort(() => Math.random() - 0.5);
+
+            shuffledSubmissions.forEach(([playerId, cardText], index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'white-card';
+                cardDiv.textContent = cardText;
+                cardDiv.dataset.playerId = playerId;
+                
+                // Only czar can select cards
+                if (gameData.current_czar === currentPlayer.id) {
+                    cardDiv.onclick = () => selectSubmission(playerId, cardText, cardDiv);
+                } else {
+                    cardDiv.style.cursor = 'default';
+                }
+                
+                submittedCardsList.appendChild(cardDiv);
+            });
+        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -876,6 +1011,29 @@
             const gameCode = generateGameCode();
             currentPlayer.isHost = true;
 
+            // Get custom cards from the input fields if they exist
+            const blackCardsText = document.getElementById('blackCardsInput')?.value?.trim();
+            const whiteCardsText = document.getElementById('whiteCardsInput')?.value?.trim();
+            const maxRounds = parseInt(document.getElementById('maxRoundsInput')?.value) || 10;
+            const cardsPerPlayer = parseInt(document.getElementById('cardsPerPlayerInput')?.value) || 7;
+
+            let blackCards = defaultBlackCards;
+            let whiteCards = defaultWhiteCards;
+
+            if (blackCardsText) {
+                const customBlackCards = blackCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
+                if (customBlackCards.length >= 5) {
+                    blackCards = customBlackCards;
+                }
+            }
+
+            if (whiteCardsText) {
+                const customWhiteCards = whiteCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
+                if (customWhiteCards.length >= 20) {
+                    whiteCards = customWhiteCards;
+                }
+            }
+
             const gameData = {
                 code: gameCode,
                 host_id: currentPlayer.id,
@@ -888,10 +1046,11 @@
                         hand: []
                     }
                 },
-                black_cards: defaultBlackCards,
-                white_cards: defaultWhiteCards,
+                black_cards: blackCards,
+                white_cards: whiteCards,
                 round: 0,
-                max_rounds: 10,
+                max_rounds: maxRounds,
+                cards_per_player: cardsPerPlayer,
                 current_black_card: null,
                 current_czar: null,
                 submitted_cards: {},
@@ -1200,7 +1359,101 @@
             });
         }
 
-        function showSubmittedCardsForJudging(gameData) {
+        function updatePlayerHand(gameData) {
+            const playerHandDiv = document.getElementById('playerHand');
+            const submitButton = document.getElementById('submitCard');
+            const czarControls = document.getElementById('czarControls');
+            const gameActions = document.getElementById('gameActions');
+            const submissionStatus = document.getElementById('submissionStatus');
+            const submittedCardsSection = document.getElementById('submittedCardsSection');
+            
+            // Update submission status for all players
+            updateSubmissionStatus(gameData);
+            
+            // Check if all non-czar players have submitted
+            const nonCzarPlayers = Object.values(gameData.players).filter(p => p.id !== gameData.current_czar);
+            const submissionCount = gameData.submitted_cards ? Object.keys(gameData.submitted_cards).length : 0;
+            const allSubmitted = submissionCount === nonCzarPlayers.length && submissionCount > 0;
+            
+            if (allSubmitted && gameData.black_card_confirmed) {
+                // Show submitted cards to everyone
+                showSubmittedCardsForAllPlayers(gameData);
+                
+                if (gameData.current_czar === currentPlayer.id) {
+                    // Czar can pick winner
+                    document.getElementById('selectWinnerBtn').style.display = 'inline-block';
+                } else {
+                    // Other players just wait
+                    document.getElementById('selectWinnerBtn').style.display = 'none';
+                    playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #4ecdc4;">Waiting for Card Czar to choose the winner...</div>';
+                }
+                gameActions.classList.add('hidden');
+                czarControls.classList.add('hidden');
+                return;
+            }
+            
+            if (gameData.current_czar === currentPlayer.id) {
+                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #ffd700;">You are the Card Czar!</div>';
+                submitButton.style.display = 'none';
+                gameActions.classList.add('hidden');
+                submittedCardsSection.classList.add('hidden');
+                
+                // Show black card selection if not confirmed yet
+                if (!gameData.black_card_confirmed) {
+                    czarControls.classList.remove('hidden');
+                    blackCardIndex = gameData.black_card_index || 0;
+                    updateBlackCardDisplay(gameData);
+                } else {
+                    czarControls.classList.add('hidden');
+                    playerHandDiv.innerHTML += '<div style="text-align: center; padding: 10px;">Waiting for all players to submit their cards...</div>';
+                }
+                return;
+            }
+
+            czarControls.classList.add('hidden');
+            submittedCardsSection.classList.add('hidden');
+            gameActions.classList.remove('hidden');
+            submitButton.style.display = 'inline-block';
+
+            const player = gameData.players[currentPlayer.id];
+            const hand = player?.hand || [];
+
+            if (hand.length === 0) {
+                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px;">Loading your cards...</div>';
+                return;
+            }
+
+            playerHandDiv.innerHTML = '';
+            hand.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'white-card';
+                cardDiv.textContent = card;
+                cardDiv.onclick = () => selectCard(index, card);
+                
+                if (currentPlayer.selectedCard === index) {
+                    cardDiv.classList.add('selected');
+                }
+                
+                playerHandDiv.appendChild(cardDiv);
+            });
+
+            // Check if player already submitted
+            const hasSubmitted = gameData.submitted_cards && gameData.submitted_cards[currentPlayer.id];
+            if (hasSubmitted) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Card Submitted';
+                document.querySelectorAll('.white-card').forEach(card => {
+                    card.style.opacity = '0.5';
+                    card.onclick = null;
+                });
+                playerHandDiv.innerHTML += '<div style="text-align: center; padding: 10px; color: #28a745;">Card submitted! Waiting for other players...</div>';
+            } else {
+                submitButton.disabled = currentPlayer.selectedCard === null;
+                submitButton.textContent = 'Submit Selected Card';
+            }
+        }
+
+        function showSubmittedCardsForAllPlayers(gameData) {
             const submittedCardsSection = document.getElementById('submittedCardsSection');
             const submittedCardsList = document.getElementById('submittedCardsList');
             
@@ -1212,6 +1465,16 @@
             submittedCardsSection.classList.remove('hidden');
             submittedCardsList.innerHTML = '';
 
+            // Update header based on whether user is czar
+            const header = submittedCardsSection.querySelector('h4');
+            if (gameData.current_czar === currentPlayer.id) {
+                header.textContent = 'Choose the Best Answer';
+                header.style.color = '#ffd700';
+            } else {
+                header.textContent = 'Submitted Answers';
+                header.style.color = '#4ecdc4';
+            }
+
             // Shuffle the submissions to anonymize them
             const submissions = Object.entries(gameData.submitted_cards);
             const shuffledSubmissions = submissions.sort(() => Math.random() - 0.5);
@@ -1220,8 +1483,14 @@
                 const cardDiv = document.createElement('div');
                 cardDiv.className = 'white-card';
                 cardDiv.textContent = cardText;
-                cardDiv.onclick = () => selectSubmission(playerId, cardText, cardDiv);
                 cardDiv.dataset.playerId = playerId;
+                
+                // Only czar can select cards
+                if (gameData.current_czar === currentPlayer.id) {
+                    cardDiv.onclick = () => selectSubmission(playerId, cardText, cardDiv);
+                } else {
+                    cardDiv.style.cursor = 'default';
+                }
                 
                 submittedCardsList.appendChild(cardDiv);
             });
