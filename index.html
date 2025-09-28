@@ -1,1016 +1,4 @@
-const blackInput = document.getElementById('blackCardsInput');
-                const whiteInput = document.getElementById('whiteCardsInput');
-                const maxRoundsInput = document.getElementById('maxRoundsInput');
-                const cardsPerPlayerInput = document.getElementById('cardsPerPlayerInput');
-                
-                if (blackInput && gameData.black_cards) {
-                    blackInput.value = gameData.black_cards.join('\n');
-                }
-                if (whiteInput && gameData.white_cards) {
-                    whiteInput.value = gameData.white_cards.join('\n');
-                }
-                if (maxRoundsInput) {
-                    maxRoundsInput.value = gameData.max_rounds || 10;
-                }
-                if (cardsPerPlayerInput) {
-                    cardsPerPlayerInput.value = gameData.cards_per_player || 7;
-                }
-
-            } catch (error) {
-                console.error('Error loading current game cards:', error);
-                loadDefaultCards();
-            }
-        }
-
-        async function updateCards() {
-            if (!currentPlayer.isHost || !currentGame) {
-                showMessage('Only the host can update cards', 'error');
-                return;
-            }
-
-            const blackCardsText = document.getElementById('blackCardsInput').value.trim();
-            const whiteCardsText = document.getElementById('whiteCardsInput').value.trim();
-            const maxRounds = parseInt(document.getElementById('maxRoundsInput').value);
-            const cardsPerPlayer = parseInt(document.getElementById('cardsPerPlayerInput').value);
-
-            let blackCards = defaultBlackCards;
-            let whiteCards = defaultWhiteCards;
-
-            if (blackCardsText) {
-                blackCards = blackCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
-            }
-
-            if (whiteCardsText) {
-                whiteCards = whiteCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
-            }
-
-            if (blackCards.length < 5) {
-                showMessage('Need at least 5 black cards', 'error');
-                return;
-            }
-
-            if (whiteCards.length < 20) {
-                showMessage('Need at least 20 white cards', 'error');
-                return;
-            }
-
-            try {
-                const { error } = await supabase
-                    .from('games')
-                    .update({
-                        black_cards: blackCards,
-                        white_cards: whiteCards,
-                        max_rounds: maxRounds,
-                        cards_per_player: cardsPerPlayer
-                    })
-                    .eq('code', currentGame);
-
-                if (error) throw error;
-
-                showMessage('Game settings updated successfully!');
-            } catch (error) {
-                console.error('Error updating cards:', error);
-                showMessage('Error updating cards: ' + error.message, 'error');
-            }
-        }
-
-        // Game Logic
-        async function joinOrCreateGame() {
-            const nameInput = document.getElementById('playerName');
-            const codeInput = document.getElementById('gameCode');
-            const name = nameInput?.value?.trim();
-            const code = codeInput?.value?.trim();
-
-            if (!name) {
-                showMessage('Please enter your name', 'error');
-                return;
-            }
-
-            if (code && (!/^\d{4}$/.test(code))) {
-                showMessage('Game code must be exactly 4 digits', 'error');
-                return;
-            }
-
-            currentPlayer.name = name;
-            currentPlayer.id = generateId();
-
-            if (code) {
-                await joinGame(code);
-            } else {
-                await createGame();
-            }
-        }
-
-        async function createGame() {
-            const gameCode = generateGameCode();
-            currentPlayer.isHost = true;
-
-            const blackCardsText = document.getElementById('blackCardsInput')?.value?.trim();
-            const whiteCardsText = document.getElementById('whiteCardsInput')?.value?.trim();
-            const maxRounds = parseInt(document.getElementById('maxRoundsInput')?.value) || 10;
-            const cardsPerPlayer = parseInt(document.getElementById('cardsPerPlayerInput')?.value) || 7;
-
-            let blackCards = defaultBlackCards;
-            let whiteCards = defaultWhiteCards;
-
-            if (blackCardsText) {
-                const customBlackCards = blackCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
-                if (customBlackCards.length >= 5) {
-                    blackCards = customBlackCards;
-                }
-            }
-
-            if (whiteCardsText) {
-                const customWhiteCards = whiteCardsText.split('\n').filter(card => card.trim()).map(card => card.trim());
-                if (customWhiteCards.length >= 20) {
-                    whiteCards = customWhiteCards;
-                }
-            }
-
-            const gameData = {
-                code: gameCode,
-                host_id: currentPlayer.id,
-                phase: 'waiting',
-                players: {
-                    [currentPlayer.id]: {
-                        id: currentPlayer.id,
-                        name: currentPlayer.name,
-                        score: 0,
-                        hand: []
-                    }
-                },
-                black_cards: blackCards,
-                white_cards: whiteCards,
-                round: 0,
-                max_rounds: maxRounds,
-                cards_per_player: cardsPerPlayer,
-                current_black_card: null,
-                current_czar: null,
-                submitted_cards: {},
-                created_at: new Date().toISOString()
-            };
-
-            try {
-                const { error } = await supabase
-                    .from('games')
-                    .insert([gameData]);
-
-                if (error) throw error;
-
-                currentGame = gameCode;
-                setupGameListener(gameCode);
-                showGameLobby(gameCode);
-                showMessage('Game created successfully!');
-            } catch (error) {
-                console.error('Error creating game:', error);
-                showMessage('Error creating game: ' + error.message, 'error');
-            }
-        }
-
-        async function joinGame(gameCode) {
-            try {
-                const { data: gameData, error } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', gameCode)
-                    .single();
-
-                if (error || !gameData) {
-                    showMessage('Game not found. Please check the code.', 'error');
-                    return;
-                }
-
-                if (gameData.phase !== 'waiting') {
-                    const existingPlayer = Object.values(gameData.players || {}).find(
-                        player => player.name === currentPlayer.name
-                    );
-                    
-                    if (existingPlayer) {
-                        currentPlayer.id = existingPlayer.id;
-                        currentPlayer.hand = existingPlayer.hand || [];
-                        currentGame = gameCode;
-                        setupGameListener(gameCode);
-                        showMessage('Reconnected to game!');
-                        return;
-                    } else {
-                        showMessage('This game has already started and you were not a participant.', 'error');
-                        return;
-                    }
-                }
-
-                const updatedPlayers = {
-                    ...gameData.players,
-                    [currentPlayer.id]: {
-                        id: currentPlayer.id,
-                        name: currentPlayer.name,
-                        score: 0,
-                        hand: []
-                    }
-                };
-
-                const { error: updateError } = await supabase
-                    .from('games')
-                    .update({ players: updatedPlayers })
-                    .eq('code', gameCode);
-
-                if (updateError) throw updateError;
-
-                currentGame = gameCode;
-                setupGameListener(gameCode);
-                showGameLobby(gameCode);
-                showMessage('Joined game successfully!');
-            } catch (error) {
-                console.error('Error joining game:', error);
-                showMessage('Error joining game: ' + error.message, 'error');
-            }
-        }
-
-        function setupGameListener(gameCode) {
-            console.log('Setting up game listener for code:', gameCode);
-            
-            const subscription = supabase
-                .channel(`game-${gameCode}`)
-                .on('postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'games',
-                        filter: `code=eq.${gameCode}`
-                    },
-                    (payload) => {
-                        console.log('Real-time update received:', payload);
-                        if (payload.new) {
-                            updateGameDisplay(payload.new);
-                        }
-                    }
-                )
-                .subscribe((status) => {
-                    console.log('Subscription status:', status);
-                });
-
-            const pollInterval = setInterval(async () => {
-                await loadGameData(gameCode);
-            }, 3000);
-
-            window.gameCleanup = () => {
-                clearInterval(pollInterval);
-                supabase.removeChannel(subscription);
-            };
-
-            loadGameData(gameCode);
-        }
-
-        async function loadGameData(gameCode) {
-            try {
-                const { data: gameData, error } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', gameCode)
-                    .single();
-
-                if (error || !gameData) {
-                    console.error('Error loading game data:', error);
-                    return;
-                }
-
-                updateGameDisplay(gameData);
-            } catch (error) {
-                console.error('Error loading game data:', error);
-            }
-        }
-
-        function updateGameDisplay(gameData) {
-            if (!gameData) return;
-            
-            updatePlayersDisplay(gameData);
-            
-            if (currentPlayer.isHost && !document.getElementById('kickPlayerMenu').classList.contains('hidden')) {
-                updateKickPlayerList(gameData);
-            }
-
-            switch (gameData.phase) {
-                case 'waiting':
-                    showWaitingPhase(gameData);
-                    break;
-                case 'playing':
-                    showPlayingPhase(gameData);
-                    break;
-                case 'round_end':
-                    showRoundEndPhase(gameData);
-                    break;
-                case 'game_end':
-                    showGameEndPhase(gameData);
-                    break;
-                default:
-                    updateGameStatus('Game in progress...');
-                    break;
-            }
-        }
-
-        function showGameLobby(gameCode) {
-            document.getElementById('displayGameCode').textContent = gameCode;
-            document.getElementById('mainSection').classList.add('hidden');
-            document.getElementById('gameInfoSection').classList.remove('hidden');
-            document.getElementById('playersSection').classList.remove('hidden');
-            
-            if (currentPlayer.isHost) {
-                document.getElementById('hostControls').classList.remove('hidden');
-                document.getElementById('cardCustomization').classList.remove('hidden');
-                setTimeout(() => {
-                    loadCurrentGameCards();
-                }, 100);
-            }
-        }
-
-        function showWaitingPhase(gameData) {
-            updateGameStatus('Waiting for players to join...');
-            document.getElementById('gamePlaySection').classList.add('hidden');
-        }
-
-        function showPlayingPhase(gameData) {
-            document.getElementById('gameInfoSection').classList.add('hidden');
-            document.getElementById('playersSection').classList.add('hidden');
-            document.getElementById('cardCustomization').classList.add('hidden');
-            document.getElementById('gameStatus').classList.add('hidden');
-            document.getElementById('gamePlaySection').classList.remove('hidden');
-
-            document.getElementById('currentRound').textContent = gameData.round || 1;
-            document.getElementById('maxRounds').textContent = gameData.max_rounds || 10;
-            
-            const czarPlayer = Object.values(gameData.players).find(p => p.id === gameData.current_czar);
-            document.getElementById('currentCzar').textContent = czarPlayer ? czarPlayer.name : 'Unknown';
-
-            document.getElementById('blackCardDisplay').textContent = gameData.current_black_card || 'Loading...';
-
-            updatePlayerHand(gameData);
-        }
-
-        function updatePlayerHand(gameData) {
-            const playerHandDiv = document.getElementById('playerHand');
-            const submitButton = document.getElementById('submitCard');
-            const czarControls = document.getElementById('czarControls');
-            const gameActions = document.getElementById('gameActions');
-            const submissionStatus = document.getElementById('submissionStatus');
-            const submittedCardsSection = document.getElementById('submittedCardsSection');
-            
-            updateSubmissionStatus(gameData);
-            
-            const nonCzarPlayers = Object.values(gameData.players).filter(p => p.id !== gameData.current_czar);
-            const submissionCount = gameData.submitted_cards ? Object.keys(gameData.submitted_cards).length : 0;
-            const allSubmitted = submissionCount === nonCzarPlayers.length && submissionCount > 0;
-            
-            if (allSubmitted && gameData.black_card_confirmed) {
-                showSubmittedCardsForAllPlayers(gameData);
-                
-                if (gameData.current_czar === currentPlayer.id) {
-                    document.getElementById('selectWinnerBtn').style.display = 'inline-block';
-                } else {
-                    document.getElementById('selectWinnerBtn').style.display = 'none';
-                    playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #4ecdc4;">Waiting for Card Czar to choose the winner...</div>';
-                }
-                gameActions.classList.add('hidden');
-                czarControls.classList.add('hidden');
-                return;
-            }
-            
-            if (gameData.current_czar === currentPlayer.id) {
-                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #ffd700;">You are the Card Czar!</div>';
-                submitButton.style.display = 'none';
-                gameActions.classList.add('hidden');
-                submittedCardsSection.classList.add('hidden');
-                
-                if (!gameData.black_card_confirmed) {
-                    czarControls.classList.remove('hidden');
-                    blackCardIndex = gameData.black_card_index || 0;
-                    updateBlackCardDisplay(gameData);
-                } else {
-                    czarControls.classList.add('hidden');
-                    playerHandDiv.innerHTML += '<div style="text-align: center; padding: 10px;">Waiting for all players to submit their cards...</div>';
-                }
-                return;
-            }
-
-            czarControls.classList.add('hidden');
-            submittedCardsSection.classList.add('hidden');
-            gameActions.classList.remove('hidden');
-            submitButton.style.display = 'inline-block';
-
-            const player = gameData.players[currentPlayer.id];
-            const hand = player?.hand || [];
-
-            if (hand.length === 0) {
-                playerHandDiv.innerHTML = '<div style="text-align: center; padding: 20px;">Loading your cards...</div>';
-                return;
-            }
-
-            playerHandDiv.innerHTML = '';
-            hand.forEach((card, index) => {
-                const cardDiv = document.createElement('div');
-                cardDiv.className = 'white-card';
-                cardDiv.textContent = card;
-                cardDiv.onclick = () => selectCard(index, card);
-                
-                if (currentPlayer.selectedCard === index) {
-                    cardDiv.classList.add('selected');
-                }
-                
-                playerHandDiv.appendChild(cardDiv);
-            });
-
-            const hasSubmitted = gameData.submitted_cards && gameData.submitted_cards[currentPlayer.id];
-            if (hasSubmitted) {
-                submitButton.disabled = true;
-                submitButton.textContent = 'Card Submitted';
-                document.querySelectorAll('.white-card').forEach(card => {
-                    card.style.opacity = '0.5';
-                    card.onclick = null;
-                });
-                playerHandDiv.innerHTML += '<div style="text-align: center; padding: 10px; color: #28a745;">Card submitted! Waiting for other players...</div>';
-            } else {
-                submitButton.disabled = currentPlayer.selectedCard === null;
-                submitButton.textContent = 'Submit Selected Card';
-            }
-        }
-
-        function updateSubmissionStatus(gameData) {
-            const submissionStatus = document.getElementById('submissionStatus');
-            const submissionList = document.getElementById('submissionList');
-            
-            if (!gameData.players || gameData.phase !== 'playing') {
-                submissionStatus.classList.add('hidden');
-                return;
-            }
-
-            submissionStatus.classList.remove('hidden');
-            submissionList.innerHTML = '';
-
-            Object.values(gameData.players).forEach(player => {
-                if (player.id === gameData.current_czar) return;
-                
-                const statusDiv = document.createElement('div');
-                statusDiv.style.cssText = 'padding: 10px; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2);';
-                
-                const hasSubmitted = gameData.submitted_cards && gameData.submitted_cards[player.id];
-                
-                if (hasSubmitted) {
-                    statusDiv.style.background = 'rgba(40, 167, 69, 0.2)';
-                    statusDiv.style.borderColor = '#28a745';
-                    statusDiv.innerHTML = `<div style="color: #28a745; font-weight: bold;">${player.name}</div><div style="color: #28a745; font-size: 12px;">✓ Submitted</div>`;
-                } else {
-                    statusDiv.style.background = 'rgba(255, 193, 7, 0.2)';
-                    statusDiv.style.borderColor = '#ffc107';
-                    statusDiv.innerHTML = `<div style="color: #ffc107; font-weight: bold;">${player.name}</div><div style="color: #ffc107; font-size: 12px;">⏳ Waiting</div>`;
-                }
-                
-                submissionList.appendChild(statusDiv);
-            });
-        }
-
-        function showSubmittedCardsForAllPlayers(gameData) {
-            const submittedCardsSection = document.getElementById('submittedCardsSection');
-            const submittedCardsList = document.getElementById('submittedCardsList');
-            
-            if (!gameData.submitted_cards || Object.keys(gameData.submitted_cards).length === 0) {
-                submittedCardsSection.classList.add('hidden');
-                return;
-            }
-
-            submittedCardsSection.classList.remove('hidden');
-            submittedCardsList.innerHTML = '';
-
-            const header = submittedCardsSection.querySelector('h4');
-            if (gameData.current_czar === currentPlayer.id) {
-                header.textContent = 'Choose the Best Answer';
-                header.style.color = '#ffd700';
-            } else {
-                header.textContent = 'Submitted Answers';
-                header.style.color = '#4ecdc4';
-            }
-
-            const submissions = Object.entries(gameData.submitted_cards);
-            const shuffledSubmissions = submissions.sort(() => Math.random() - 0.5);
-
-            shuffledSubmissions.forEach(([playerId, cardText], index) => {
-                const cardDiv = document.createElement('div');
-                cardDiv.className = 'white-card';
-                cardDiv.textContent = cardText;
-                cardDiv.dataset.playerId = playerId;
-                
-                if (gameData.current_czar === currentPlayer.id) {
-                    cardDiv.onclick = () => selectSubmission(playerId, cardText, cardDiv);
-                } else {
-                    cardDiv.style.cursor = 'default';
-                }
-                
-                submittedCardsList.appendChild(cardDiv);
-            });
-        }
-
-        function updateBlackCardDisplay(gameData) {
-            const blackCards = gameData.black_cards || [];
-            const displayCard = blackCards[blackCardIndex] || 'No card available';
-            document.getElementById('blackCardDisplay').textContent = displayCard;
-        }
-
-        async function previousBlackCard() {
-            const { data: gameData, error } = await supabase
-                .from('games')
-                .select('*')
-                .eq('code', currentGame)
-                .single();
-
-            if (error || !gameData) return;
-
-            const blackCards = gameData.black_cards || [];
-            blackCardIndex = (blackCardIndex - 1 + blackCards.length) % blackCards.length;
-            
-            await supabase
-                .from('games')
-                .update({ black_card_index: blackCardIndex })
-                .eq('code', currentGame);
-
-            updateBlackCardDisplay(gameData);
-        }
-
-        async function nextBlackCard() {
-            const { data: gameData, error } = await supabase
-                .from('games')
-                .select('*')
-                .eq('code', currentGame)
-                .single();
-
-            if (error || !gameData) return;
-
-            const blackCards = gameData.black_cards || [];
-            blackCardIndex = (blackCardIndex + 1) % blackCards.length;
-            
-            await supabase
-                .from('games')
-                .update({ black_card_index: blackCardIndex })
-                .eq('code', currentGame);
-
-            updateBlackCardDisplay(gameData);
-        }
-
-        async function confirmBlackCard() {
-            const { data: gameData, error } = await supabase
-                .from('games')
-                .select('*')
-                .eq('code', currentGame)
-                .single();
-
-            if (error || !gameData) return;
-
-            const selectedCard = gameData.black_cards[blackCardIndex];
-            
-            await supabase
-                .from('games')
-                .update({ 
-                    current_black_card: selectedCard,
-                    black_card_confirmed: true
-                })
-                .eq('code', currentGame);
-
-            showMessage('Black card confirmed! Players can now submit answers.');
-        }
-
-        function selectCard(index, card) {
-            document.querySelectorAll('.white-card').forEach(c => c.classList.remove('selected'));
-            
-            event.target.classList.add('selected');
-            currentPlayer.selectedCard = index;
-            
-            document.getElementById('submitCard').disabled = false;
-        }
-
-        function selectSubmission(playerId, cardText, cardElement) {
-            document.querySelectorAll('#submittedCardsList .white-card').forEach(c => c.classList.remove('selected'));
-            
-            cardElement.classList.add('selected');
-            currentPlayer.selectedSubmission = playerId;
-            
-            document.getElementById('selectWinnerBtn').disabled = false;
-        }
-
-        async function selectWinner() {
-            if (!currentPlayer.selectedSubmission) return;
-
-            try {
-                const { data: gameData, error: fetchError } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', currentGame)
-                    .single();
-
-                if (fetchError) throw fetchError;
-
-                const winnerPlayer = gameData.players[currentPlayer.selectedSubmission];
-                
-                const updatedPlayers = {
-                    ...gameData.players,
-                    [currentPlayer.selectedSubmission]: {
-                        ...winnerPlayer,
-                        score: (winnerPlayer.score || 0) + 1
-                    }
-                };
-
-                const nextRound = (gameData.round || 1) + 1;
-                const maxRounds = gameData.max_rounds || 10;
-                
-                let updateData = {
-                    players: updatedPlayers,
-                    submitted_cards: {},
-                    black_card_confirmed: false
-                };
-
-                if (nextRound > maxRounds) {
-                    updateData.phase = 'game_end';
-                } else {
-                    const playerIds = Object.keys(gameData.players);
-                    const currentCzarIndex = playerIds.indexOf(gameData.current_czar);
-                    const nextCzarIndex = (currentCzarIndex + 1) % playerIds.length;
-                    
-                    updateData.round = nextRound;
-                    updateData.current_czar = playerIds[nextCzarIndex];
-                    updateData.black_card_index = 0;
-                    updateData.current_black_card = gameData.black_cards[0];
-                }
-
-                const { error: updateError } = await supabase
-                    .from('games')
-                    .update(updateData)
-                    .eq('code', currentGame);
-
-                if (updateError) throw updateError;
-
-                currentPlayer.selectedSubmission = null;
-                showMessage(`${winnerPlayer.name} wins this round!`);
-
-            } catch (error) {
-                console.error('Error selecting winner:', error);
-                showMessage('Error selecting winner: ' + error.message, 'error');
-            }
-        }
-
-        async function submitCard() {
-            if (currentPlayer.selectedCard === null) return;
-
-            try {
-                const { data: gameData, error: fetchError } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', currentGame)
-                    .single();
-
-                if (fetchError) throw fetchError;
-
-                const player = gameData.players[currentPlayer.id];
-                const selectedCardText = player.hand[currentPlayer.selectedCard];
-
-                const updatedSubmissions = {
-                    ...gameData.submitted_cards,
-                    [currentPlayer.id]: selectedCardText
-                };
-
-                const updatedHand = [...player.hand];
-                updatedHand.splice(currentPlayer.selectedCard, 1);
-
-                const updatedPlayers = {
-                    ...gameData.players,
-                    [currentPlayer.id]: {
-                        ...player,
-                        hand: updatedHand
-                    }
-                };
-
-                const { error: updateError } = await supabase
-                    .from('games')
-                    .update({
-                        submitted_cards: updatedSubmissions,
-                        players: updatedPlayers
-                    })
-                    .eq('code', currentGame);
-
-                if (updateError) throw updateError;
-
-                currentPlayer.selectedCard = null;
-                showMessage('Card submitted!');
-
-            } catch (error) {
-                console.error('Error submitting card:', error);
-                showMessage('Error submitting card: ' + error.message, 'error');
-            }
-        }
-
-        function writeCustomAnswer() {
-            document.getElementById('customAnswerSection').classList.remove('hidden');
-            document.getElementById('gameActions').style.display = 'none';
-            currentPlayer.selectedCard = null;
-            document.querySelectorAll('.white-card').forEach(c => c.classList.remove('selected'));
-        }
-
-        function cancelCustomAnswer() {
-            document.getElementById('customAnswerSection').classList.add('hidden');
-            document.getElementById('gameActions').style.display = 'flex';
-            document.getElementById('customAnswerInput').value = '';
-        }
-
-        async function submitCustomAnswer() {
-            const customText = document.getElementById('customAnswerInput').value.trim();
-            if (!customText) {
-                showMessage('Please enter an answer', 'error');
-                return;
-            }
-
-            try {
-                const { data: gameData, error: fetchError } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', currentGame)
-                    .single();
-
-                if (fetchError) throw fetchError;
-
-                const updatedSubmissions = {
-                    ...gameData.submitted_cards,
-                    [currentPlayer.id]: customText
-                };
-
-                const { error: updateError } = await supabase
-                    .from('games')
-                    .update({ submitted_cards: updatedSubmissions })
-                    .eq('code', currentGame);
-
-                if (updateError) throw updateError;
-
-                cancelCustomAnswer();
-                showMessage('Custom answer submitted!');
-
-            } catch (error) {
-                console.error('Error submitting custom answer:', error);
-                showMessage('Error submitting answer: ' + error.message, 'error');
-            }
-        }
-
-        async function discardHand() {
-            if (!confirm('Are you sure you want to discard your hand and draw new cards?')) return;
-
-            try {
-                const { data: gameData, error: fetchError } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', currentGame)
-                    .single();
-
-                if (fetchError) throw fetchError;
-
-                const player = gameData.players[currentPlayer.id];
-                const cardsPerPlayer = gameData.cards_per_player || 7;
-                const whiteCards = [...gameData.white_cards];
-                
-                const newHand = [];
-                for (let i = 0; i < cardsPerPlayer; i++) {
-                    if (whiteCards.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * whiteCards.length);
-                        newHand.push(whiteCards[randomIndex]);
-                        whiteCards.splice(randomIndex, 1);
-                    }
-                }
-
-                const updatedPlayers = {
-                    ...gameData.players,
-                    [currentPlayer.id]: {
-                        ...player,
-                        hand: newHand
-                    }
-                };
-
-                const { error: updateError } = await supabase
-                    .from('games')
-                    .update({ players: updatedPlayers })
-                    .eq('code', currentGame);
-
-                if (updateError) throw updateError;
-
-                currentPlayer.selectedCard = null;
-                showMessage('Hand discarded! New cards dealt.');
-
-            } catch (error) {
-                console.error('Error discarding hand:', error);
-                showMessage('Error discarding hand: ' + error.message, 'error');
-            }
-        }
-
-        function showKickMenu() {
-            const kickMenu = document.getElementById('kickPlayerMenu');
-            kickMenu.classList.remove('hidden');
-        }
-
-        function hideKickMenu() {
-            document.getElementById('kickPlayerMenu').classList.add('hidden');
-        }
-
-        function updateKickPlayerList(gameData) {
-            if (!currentPlayer.isHost) return;
-            
-            const playerSelect = document.getElementById('playerToKick');
-            playerSelect.innerHTML = '<option value="">Select player to remove...</option>';
-            
-            Object.values(gameData.players).forEach(player => {
-                if (player.id !== currentPlayer.id) {
-                    const option = document.createElement('option');
-                    option.value = player.id;
-                    option.textContent = player.name;
-                    playerSelect.appendChild(option);
-                }
-            });
-        }
-
-        async function kickPlayer() {
-            const playerToKickId = document.getElementById('playerToKick').value;
-            if (!playerToKickId) {
-                showMessage('Please select a player to remove', 'error');
-                return;
-            }
-
-            try {
-                const { data: gameData, error: fetchError } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', currentGame)
-                    .single();
-
-                if (fetchError) throw fetchError;
-
-                const playerToKick = gameData.players[playerToKickId];
-                const updatedPlayers = { ...gameData.players };
-                delete updatedPlayers[playerToKickId];
-
-                let updateData = { players: updatedPlayers };
-                if (gameData.current_czar === playerToKickId) {
-                    const remainingPlayerIds = Object.keys(updatedPlayers);
-                    if (remainingPlayerIds.length > 0) {
-                        updateData.current_czar = remainingPlayerIds[0];
-                    }
-                }
-
-                const { error: updateError } = await supabase
-                    .from('games')
-                    .update(updateData)
-                    .eq('code', currentGame);
-
-                if (updateError) throw updateError;
-
-                hideKickMenu();
-                showMessage(`${playerToKick.name} has been removed from the game`);
-
-            } catch (error) {
-                console.error('Error kicking player:', error);
-                showMessage('Error removing player: ' + error.message, 'error');
-            }
-        }
-
-        function showRoundEndPhase(gameData) {
-            updateGameStatus('Round ended! Preparing next round...');
-        }
-
-        function showGameEndPhase(gameData) {
-            updateGameStatus('Game finished! Thanks for playing!');
-        }
-
-        async function refreshGameData() {
-            if (!currentGame) return;
-            console.log('Manually refreshing game data for:', currentGame);
-            await loadGameData(currentGame);
-            showMessage('Game data refreshed!');
-        }
-
-        async function startGame() {
-            if (!currentPlayer.isHost) return;
-
-            try {
-                const { data: gameData, error: fetchError } = await supabase
-                    .from('games')
-                    .select('*')
-                    .eq('code', currentGame)
-                    .single();
-
-                if (fetchError) throw fetchError;
-
-                const playerCount = Object.keys(gameData.players).length;
-
-                if (playerCount < 3) {
-                    showMessage('Need at least 3 players to start', 'error');
-                    return;
-                }
-
-                const firstCzar = gameData.host_id;
-                const cardsPerPlayer = gameData.cards_per_player || 7;
-
-                const updatedPlayers = { ...gameData.players };
-                const whiteCards = [...gameData.white_cards];
-                let cardIndex = 0;
-
-                Object.keys(updatedPlayers).forEach(playerId => {
-                    const hand = [];
-                    for (let i = 0; i < cardsPerPlayer; i++) {
-                        if (cardIndex < whiteCards.length) {
-                            hand.push(whiteCards[cardIndex]);
-                            cardIndex++;
-                        }
-                    }
-                    updatedPlayers[playerId].hand = hand;
-                });
-
-                const firstBlackCard = gameData.black_cards[0];
-
-                const { error: updateError } = await supabase
-                    .from('games')
-                    .update({
-                        phase: 'playing',
-                        round: 1,
-                        current_czar: firstCzar,
-                        current_black_card: firstBlackCard,
-                        players: updatedPlayers,
-                        submitted_cards: {},
-                        black_card_index: 0,
-                        black_card_confirmed: false
-                    })
-                    .eq('code', currentGame);
-
-                if (updateError) throw updateError;
-
-                showMessage('Game started!');
-            } catch (error) {
-                console.error('Error starting game:', error);
-                showMessage('Error starting game: ' + error.message, 'error');
-            }
-        }
-
-        async function leaveGame() {
-            if (confirm('Are you sure you want to leave the game?')) {
-                if (window.gameCleanup) {
-                    window.gameCleanup();
-                }
-                location.reload();
-            }
-        }
-
-        async function initializeApp() {
-            try {
-                const { data, error } = await supabase.from('games').select('count').limit(1);
-                
-                if (error) {
-                    console.error('Supabase connection error:', error);
-                    showMessage('Database connection failed. Please refresh the page.', 'error');
-                } else {
-                    console.log('Supabase connected successfully');
-                    updateGameStatus('Welcome! Enter your name to join or create a game.');
-                }
-            } catch (error) {
-                console.error('Initialization error:', error);
-                showMessage('Failed to initialize game. Please refresh the page.', 'error');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('playerName')?.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    joinOrCreateGame();
-                }
-            });
-
-            document.getElementById('gameCode')?.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    joinOrCreateGame();
-                }
-            });
-
-            window.joinOrCreateGame = joinOrCreateGame;
-            window.startGame = startGame;
-            window.refreshGameData = refreshGameData;
-            window.loadDefaultCards = loadDefaultCards;
-            window.loadCurrentGameCards = loadCurrentGameCards;
-            window.updateCards = updateCards;
-            window.submitCard = submitCard;
-            window.leaveGame = leaveGame;
-            window.previousBlackCard = previousBlackCard;
-            window.nextBlackCard = nextBlackCard;
-            window.confirmBlackCard = confirmBlackCard;
-            window.writeCustomAnswer = writeCustomAnswer;
-            window.cancelCustomAnswer = cancelCustomAnswer;
-            window.submitCustomAnswer = submitCustomAnswer;
-            window.discardHand = discardHand;
-            window.selectWinner = selectWinner;
-            window.showKickMenu = showKickMenu;
-            window.hideKickMenu = hideKickMenu;
-            window.kickPlayer = kickPlayer;
-            
-            initializeApp();
-        });
-    </script>
-</body>
-</html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1431,15 +419,11 @@ const blackInput = document.getElementById('blackCardsInput');
 </head>
 <body>
     <div class="game-layout">
-        <!-- Scoreboard -->
         <div id="scoreboard" class="scoreboard hidden">
             <h3>Scoreboard</h3>
-            <div id="scoreboardPlayers">
-                <!-- Score list will be populated here -->
-            </div>
+            <div id="scoreboardPlayers"></div>
         </div>
 
-        <!-- Main Game Content -->
         <div class="main-content">
             <div class="container">
                 <div class="header">
@@ -1447,7 +431,6 @@ const blackInput = document.getElementById('blackCardsInput');
                     <p>A card game for friends who aren't easily offended</p>
                 </div>
 
-                <!-- Start/Join Game Section -->
                 <div id="mainSection" class="game-section">
                     <h2 style="text-align: center; margin-bottom: 20px;">Join or Create Game</h2>
                     <div class="join-form">
@@ -1457,7 +440,6 @@ const blackInput = document.getElementById('blackCardsInput');
                     </div>
                 </div>
 
-                <!-- Game Info Section -->
                 <div id="gameInfoSection" class="game-section hidden">
                     <div class="game-info">
                         <h3>Game Code:</h3>
@@ -1466,7 +448,6 @@ const blackInput = document.getElementById('blackCardsInput');
                     </div>
                 </div>
 
-                <!-- Card Customization Section -->
                 <div id="cardCustomization" class="game-section hidden">
                     <div class="card-customization">
                         <h3>Customize Game Settings</h3>
@@ -1499,12 +480,9 @@ const blackInput = document.getElementById('blackCardsInput');
                     </div>
                 </div>
 
-                <!-- Players List -->
                 <div id="playersSection" class="game-section hidden">
                     <h2 style="text-align: center; margin-bottom: 20px;">Players</h2>
-                    <div id="playersList" class="players-list">
-                        <!-- Players will be populated here -->
-                    </div>
+                    <div id="playersList" class="players-list"></div>
                     <div id="hostControls" class="hidden">
                         <div class="actions" style="margin-top: 15px;">
                             <button class="btn btn-secondary" onclick="refreshGameData()">Refresh Player List</button>
@@ -1513,7 +491,6 @@ const blackInput = document.getElementById('blackCardsInput');
                         </div>
                     </div>
 
-                    <!-- Kick Player Menu -->
                     <div id="kickPlayerMenu" class="hidden" style="margin-top: 15px; padding: 15px; background: rgba(220, 53, 69, 0.1); border: 1px solid #dc3545; border-radius: 8px;">
                         <h4 style="color: #dc3545; margin-bottom: 10px;">Remove Player</h4>
                         <select id="playerToKick" style="width: 100%; padding: 8px; margin-bottom: 10px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 5px;">
@@ -1526,48 +503,35 @@ const blackInput = document.getElementById('blackCardsInput');
                     </div>
                 </div>
 
-                <!-- Game Play Section -->
                 <div id="gamePlaySection" class="game-section hidden">
                     <div id="roundInfo" class="round-info">
                         <h3>Round <span id="currentRound">1</span> of <span id="maxRounds">10</span></h3>
                         <p>Card Czar: <span id="currentCzar">Player Name</span></p>
                     </div>
 
-                    <div id="blackCardDisplay" class="black-card">
-                        <!-- Current black card will appear here -->
-                    </div>
+                    <div id="blackCardDisplay" class="black-card"></div>
 
-                    <!-- Czar Controls -->
                     <div id="czarControls" class="actions hidden" style="margin-bottom: 20px;">
                         <button class="btn btn-secondary" onclick="previousBlackCard()">← Previous Card</button>
                         <button class="btn btn-secondary" onclick="nextBlackCard()">Next Card →</button>
                         <button class="btn" onclick="confirmBlackCard()">Use This Card</button>
                     </div>
 
-                    <!-- Player Submission Status -->
                     <div id="submissionStatus" class="hidden" style="margin-bottom: 20px;">
                         <h4 style="color: #4ecdc4; text-align: center; margin-bottom: 15px;">Player Submissions</h4>
-                        <div id="submissionList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                            <!-- Submission status will appear here -->
-                        </div>
+                        <div id="submissionList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"></div>
                     </div>
 
-                    <!-- Submitted Cards for Everyone to See -->
                     <div id="submittedCardsSection" class="hidden" style="margin-bottom: 20px;">
                         <h4 style="color: #ffd700; text-align: center; margin-bottom: 15px;">Choose the Best Answer</h4>
-                        <div id="submittedCardsList" class="white-cards">
-                            <!-- Submitted cards will appear here -->
-                        </div>
+                        <div id="submittedCardsList" class="white-cards"></div>
                         <div class="actions" style="margin-top: 15px;">
                             <button id="selectWinnerBtn" class="btn" onclick="selectWinner()" disabled>Select Winner</button>
                         </div>
                     </div>
 
-                    <div id="playerHand" class="white-cards">
-                        <!-- Player's white cards will appear here -->
-                    </div>
+                    <div id="playerHand" class="white-cards"></div>
 
-                    <!-- Custom Answer Input -->
                     <div id="customAnswerSection" class="hidden" style="margin: 20px 0;">
                         <textarea id="customAnswerInput" placeholder="Write your own answer..." style="width: 100%; height: 80px; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; resize: vertical;"></textarea>
                         <div style="margin-top: 10px;">
@@ -1584,7 +548,6 @@ const blackInput = document.getElementById('blackCardsInput');
                     </div>
                 </div>
 
-                <!-- Game Status -->
                 <div id="gameStatus" class="game-status hidden">
                     Waiting for game to start...
                 </div>
@@ -1592,15 +555,11 @@ const blackInput = document.getElementById('blackCardsInput');
         </div>
     </div>
 
-    <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <script>
-        // Supabase Configuration
         const supabaseUrl = 'https://krrrwuoehltojuzjizqf.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtycnJ3dW9laGx0b2p1emppenFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMTc2MjcsImV4cCI6MjA3NDU5MzYyN30.t36l0IPV3k0WHWSLZbv1fA_nBerBP-t51e9qjzgzXrM';
 
-        // Initialize Supabase
         let supabase;
         try {
             supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -1608,7 +567,6 @@ const blackInput = document.getElementById('blackCardsInput');
             console.error('Failed to initialize Supabase:', error);
         }
 
-        // Game state
         let currentGame = null;
         let currentPlayer = {
             id: null,
@@ -1620,7 +578,6 @@ const blackInput = document.getElementById('blackCardsInput');
         };
         let blackCardIndex = 0;
 
-        // Default card decks
         const defaultBlackCards = [
             "What's my secret power?",
             "What ended my last relationship?",
@@ -1631,12 +588,7 @@ const blackInput = document.getElementById('blackCardsInput');
             "What's the new fad diet?",
             "What's there a ton of in heaven?",
             "What's Batman's guilty pleasure?",
-            "___ + ___ = ___.",
-            "In M. Night Shyamalan's new movie, Bruce Willis discovers that ___ had really been ___ all along.",
-            "TSA guidelines now prohibit ___ on airplanes.",
-            "Coming to Broadway this season, ___: The Musical.",
-            "Alternative medicine is now embracing the curative powers of ___.",
-            "The Academy Award for ___ goes to ___."
+            "___ + ___ = ___."
         ];
 
         const defaultWhiteCards = [
@@ -1659,20 +611,9 @@ const blackInput = document.getElementById('blackCardsInput');
             "Adderall",
             "Racially-biased SAT questions",
             "The Three-Fifths compromise",
-            "My collection of high-tech sex toys",
-            "Throwing a virgin into a volcano",
-            "The South",
-            "Expecting a burp and vomiting on the floor",
-            "Cheating in the Special Olympics",
-            "Incest",
-            "Viagra",
-            "Daniel Radcliffe's delicious asshole",
-            "A windmill full of corpses",
-            "Swooping",
-            "Getting so angry you pop a boner"
+            "My collection of high-tech sex toys"
         ];
 
-        // Utility functions
         function generateId() {
             return Math.random().toString(36).substr(2, 9);
         }
@@ -1681,22 +622,11 @@ const blackInput = document.getElementById('blackCardsInput');
             return Math.floor(1000 + Math.random() * 9000).toString();
         }
 
-        function shuffleArray(array) {
-            const shuffled = [...array];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-            }
-            return shuffled;
-        }
-
         function showMessage(message, type = 'success') {
             const messageDiv = document.createElement('div');
             messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
             messageDiv.textContent = message;
-            
             document.body.appendChild(messageDiv);
-            
             setTimeout(() => {
                 if (messageDiv.parentNode) {
                     messageDiv.remove();
@@ -1704,7 +634,6 @@ const blackInput = document.getElementById('blackCardsInput');
             }, 5000);
         }
 
-        // UI Management
         function updateGameStatus(message) {
             const statusEl = document.getElementById('gameStatus');
             if (statusEl) {
@@ -1713,88 +642,6 @@ const blackInput = document.getElementById('blackCardsInput');
             }
         }
 
-        function updatePlayersDisplay(gameData) {
-            const playersList = document.getElementById('playersList');
-            if (!playersList || !gameData.players) return;
-
-            playersList.innerHTML = '';
-            const players = gameData.players;
-
-            Object.values(players).forEach(player => {
-                const playerDiv = document.createElement('div');
-                playerDiv.className = 'player-card';
-                
-                if (player.id === gameData.host_id) {
-                    playerDiv.classList.add('host');
-                }
-
-                if (gameData.current_czar === player.id) {
-                    playerDiv.classList.add('czar');
-                }
-
-                playerDiv.innerHTML = `
-                    <div class="player-name">
-                        ${player.name}
-                        ${player.id === gameData.host_id ? ' (Host)' : ''}
-                        ${gameData.current_czar === player.id ? ' (Czar)' : ''}
-                    </div>
-                    <div class="player-score">Score: ${player.score || 0}</div>
-                `;
-                playersList.appendChild(playerDiv);
-            });
-
-            updateScoreboard(gameData);
-        }
-
-        function updateScoreboard(gameData) {
-            const scoreboardContainer = document.getElementById('scoreboardPlayers');
-            const scoreboard = document.getElementById('scoreboard');
-            
-            if (!scoreboardContainer || !gameData.players) {
-                scoreboard && scoreboard.classList.add('hidden');
-                return;
-            }
-
-            if (gameData.phase === 'waiting') {
-                scoreboard.classList.add('hidden');
-                return;
-            }
-
-            scoreboard.classList.remove('hidden');
-
-            const sortedPlayers = Object.values(gameData.players).sort((a, b) => (b.score || 0) - (a.score || 0));
-
-            scoreboardContainer.innerHTML = '';
-            sortedPlayers.forEach((player, index) => {
-                const scoreDiv = document.createElement('div');
-                scoreDiv.className = 'score-player';
-                
-                if (player.id === gameData.host_id) {
-                    scoreDiv.classList.add('host');
-                }
-
-                if (gameData.current_czar === player.id) {
-                    scoreDiv.classList.add('czar');
-                }
-
-                let rankIndicator = '';
-                if (index === 0 && player.score > 0) rankIndicator = '🥇';
-                else if (index === 1 && player.score > 0) rankIndicator = '🥈';
-                else if (index === 2 && player.score > 0) rankIndicator = '🥉';
-
-                scoreDiv.innerHTML = `
-                    <div class="score-player-name">
-                        ${rankIndicator} ${player.name}
-                        ${player.id === gameData.host_id ? ' (Host)' : ''}
-                        ${gameData.current_czar === player.id ? ' (Czar)' : ''}
-                    </div>
-                    <div class="score-player-points">${player.score || 0}</div>
-                `;
-                scoreboardContainer.appendChild(scoreDiv);
-            });
-        }
-
-        // Card Management
         function loadDefaultCards() {
             const blackInput = document.getElementById('blackCardsInput');
             const whiteInput = document.getElementById('whiteCardsInput');
@@ -1805,18 +652,173 @@ const blackInput = document.getElementById('blackCardsInput');
             showMessage('Default cards loaded!');
         }
 
-        async function loadCurrentGameCards() {
+        async function joinOrCreateGame() {
+            const nameInput = document.getElementById('playerName');
+            const codeInput = document.getElementById('gameCode');
+            const name = nameInput?.value?.trim();
+            const code = codeInput?.value?.trim();
+
+            if (!name) {
+                showMessage('Please enter your name', 'error');
+                return;
+            }
+
+            currentPlayer.name = name;
+            currentPlayer.id = generateId();
+
+            if (code) {
+                await joinGame(code);
+            } else {
+                await createGame();
+            }
+        }
+
+        async function createGame() {
+            const gameCode = generateGameCode();
+            currentPlayer.isHost = true;
+
+            const gameData = {
+                code: gameCode,
+                host_id: currentPlayer.id,
+                phase: 'waiting',
+                players: {
+                    [currentPlayer.id]: {
+                        id: currentPlayer.id,
+                        name: currentPlayer.name,
+                        score: 0,
+                        hand: []
+                    }
+                },
+                black_cards: defaultBlackCards,
+                white_cards: defaultWhiteCards,
+                round: 0,
+                max_rounds: 10,
+                cards_per_player: 7,
+                current_black_card: null,
+                current_czar: null,
+                submitted_cards: {},
+                created_at: new Date().toISOString()
+            };
+
             try {
-                const { data: gameData, error } = await supabase
+                const { error } = await supabase
                     .from('games')
-                    .select('*')
-                    .eq('code', currentGame)
-                    .single();
+                    .insert([gameData]);
 
-                if (error || !gameData) {
+                if (error) throw error;
+
+                currentGame = gameCode;
+                showGameLobby(gameCode);
+                showMessage('Game created successfully!');
+            } catch (error) {
+                console.error('Error creating game:', error);
+                showMessage('Error creating game: ' + error.message, 'error');
+            }
+        }
+
+        async function joinGame(gameCode) {
+            showMessage('Feature coming soon', 'error');
+        }
+
+        function showGameLobby(gameCode) {
+            document.getElementById('displayGameCode').textContent = gameCode;
+            document.getElementById('mainSection').classList.add('hidden');
+            document.getElementById('gameInfoSection').classList.remove('hidden');
+            document.getElementById('playersSection').classList.remove('hidden');
+            
+            if (currentPlayer.isHost) {
+                document.getElementById('hostControls').classList.remove('hidden');
+                document.getElementById('cardCustomization').classList.remove('hidden');
+                setTimeout(() => {
                     loadDefaultCards();
-                    return;
-                }
+                }, 100);
+            }
+        }
 
-                const blackInput = document.getElementById('blackCardsInput');
-                const white
+        async function startGame() {
+            showMessage('Game start feature coming soon', 'error');
+        }
+
+        async function refreshGameData() {
+            showMessage('Refresh feature coming soon', 'error');
+        }
+
+        function updateCards() {
+            showMessage('Card update feature coming soon', 'error');
+        }
+
+        function submitCard() {
+            showMessage('Submit card feature coming soon', 'error');
+        }
+
+        function leaveGame() {
+            location.reload();
+        }
+
+        function writeCustomAnswer() {
+            showMessage('Custom answer feature coming soon', 'error');
+        }
+
+        function cancelCustomAnswer() {
+            document.getElementById('customAnswerSection').classList.add('hidden');
+        }
+
+        function submitCustomAnswer() {
+            showMessage('Custom answer feature coming soon', 'error');
+        }
+
+        function discardHand() {
+            showMessage('Discard hand feature coming soon', 'error');
+        }
+
+        function selectWinner() {
+            showMessage('Select winner feature coming soon', 'error');
+        }
+
+        function showKickMenu() {
+            showMessage('Kick player feature coming soon', 'error');
+        }
+
+        function hideKickMenu() {
+            document.getElementById('kickPlayerMenu').classList.add('hidden');
+        }
+
+        function kickPlayer() {
+            showMessage('Kick player feature coming soon', 'error');
+        }
+
+        function previousBlackCard() {
+            showMessage('Black card navigation coming soon', 'error');
+        }
+
+        function nextBlackCard() {
+            showMessage('Black card navigation coming soon', 'error');
+        }
+
+        function confirmBlackCard() {
+            showMessage('Confirm black card feature coming soon', 'error');
+        }
+
+        async function initializeApp() {
+            try {
+                const { data, error } = await supabase.from('games').select('count').limit(1);
+                
+                if (error) {
+                    console.error('Supabase connection error:', error);
+                    showMessage('Database connection failed. Please refresh the page.', 'error');
+                } else {
+                    console.log('Supabase connected successfully');
+                    updateGameStatus('Welcome! Enter your name to join or create a game.');
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showMessage('Failed to initialize game. Please refresh the page.', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
